@@ -152,46 +152,43 @@
                     <h2>User Management</h2>
                     <ul class="nav nav-tabs mb-3" id="userManagementTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="add-student-tab" data-bs-toggle="tab"
-                                data-bs-target="#add-student" type="button" role="tab" aria-controls="add-student"
-                                aria-selected="true">Add Students</button>
+                            <button class="nav-link active" id="add-student-tab" data-bs-toggle="tab" data-bs-target="#add-student" type="button" role="tab" aria-controls="add-student" aria-selected="true">Add Students</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="add-staff-tab" data-bs-toggle="tab" data-bs-target="#add-staff"
-                                type="button" role="tab" aria-controls="add-staff" aria-selected="false">Add
-                                Staff</button>
+                            <button class="nav-link" id="add-staff-tab" data-bs-toggle="tab" data-bs-target="#add-staff" type="button" role="tab" aria-controls="add-staff" aria-selected="false">Add Staff</button>
                         </li>
                     </ul>
                     <div class="tab-content" id="userManagementTabContent">
-                        <div class="tab-pane fade show active" id="add-student" role="tabpanel"
-                            aria-labelledby="add-student-tab">
+                        <div class="tab-pane fade show active" id="add-student" role="tabpanel" aria-labelledby="add-student-tab">
                             <div class="card">
                                 <div class="card-header">
                                     <h3>Add Students</h3>
                                 </div>
                                 <div class="card-body">
                                     <form id="add-student-form">
-                                        <div id="student-form-container">
-                                            <div class="row mb-3 student-form">
-                                                <div class="col">
-                                                    <input type="text" class="form-control" name="full_name[]"
-                                                        placeholder="Full Name" required>
-                                                </div>
-                                                <div class="col">
-                                                    <input type="email" class="form-control" name="email[]"
-                                                        placeholder="Email" required>
-                                                </div>
-                                                <div class="col">
-                                                    <input type="tel" class="form-control" name="phone[]"
-                                                        placeholder="Phone" required>
-                                                </div>
+                                        <div class="row mb-3">
+                                            <div class="col">
+                                                <input type="text" class="form-control" name="username"
+                                                    placeholder="Username" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="text" class="form-control" name="full_name"
+                                                    placeholder="Full Name" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="email" class="form-control" name="email"
+                                                    placeholder="Email" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
+                                                    required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-primary">Add Student</button>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-secondary mb-3" id="add-student-row">Add
-                                            Another Student</button>
-                                        <button type="submit" class="btn btn-primary">Submit All Students</button>
                                     </form>
-                                    <div id="student-list" class="mt-3"></div>
+                                    <div id="student-list"></div>
                                 </div>
                             </div>
                         </div>
@@ -202,27 +199,29 @@
                                 </div>
                                 <div class="card-body">
                                     <form id="add-staff-form">
-                                        <div id="staff-form-container">
-                                            <div class="row mb-3 staff-form">
-                                                <div class="col">
-                                                    <input type="text" class="form-control" name="full_name[]"
-                                                        placeholder="Full Name" required>
-                                                </div>
-                                                <div class="col">
-                                                    <input type="email" class="form-control" name="email[]"
-                                                        placeholder="Email" required>
-                                                </div>
-                                                <div class="col">
-                                                    <input type="tel" class="form-control" name="phone[]"
-                                                        placeholder="Phone" required>
-                                                </div>
+                                        <div class="row mb-3">
+                                            <div class="col">
+                                                <input type="text" class="form-control" name="username"
+                                                    placeholder="Username" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="text" class="form-control" name="full_name"
+                                                    placeholder="Full Name" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="email" class="form-control" name="email"
+                                                    placeholder="Email" required>
+                                            </div>
+                                            <div class="col">
+                                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
+                                                    required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-primary">Add Staff</button>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-secondary mb-3" id="add-staff-row">Add
-                                            Another Staff</button>
-                                        <button type="submit" class="btn btn-primary">Submit All Staff</button>
                                     </form>
-                                    <div id="staff-list" class="mt-3"></div>
+                                    <div id="staff-list"></div>
                                 </div>
                             </div>
                         </div>
@@ -276,101 +275,8 @@
                 });
             });
         });
-        document.addEventListener('DOMContentLoaded', function () {
-            const addStudentForm = document.getElementById('add-student-form');
-            const addStaffForm = document.getElementById('add-staff-form');
-            const studentList = document.getElementById('student-list');
-            const staffList = document.getElementById('staff-list');
-            const addStudentRowBtn = document.getElementById('add-student-row');
-            const addStaffRowBtn = document.getElementById('add-staff-row');
-
-            function addFormRow(container, formClass) {
-                const newRow = document.createElement('div');
-                newRow.className = `row mb-3 ${formClass}`;
-                newRow.innerHTML = `
-            <div class="col">
-                <input type="text" class="form-control" name="username[]" placeholder="Username" required>
-            </div>
-            <div class="col">
-                <input type="text" class="form-control" name="full_name[]" placeholder="Full Name" required>
-            </div>
-            <div class="col">
-                <input type="email" class="form-control" name="email[]" placeholder="Email" required>
-            </div>
-            <div class="col">
-                <input type="tel" class="form-control" name="phone[]" placeholder="Phone" required>
-            </div>
-        `;
-                container.appendChild(newRow);
-            }
-
-            addStudentRowBtn.addEventListener('click', () => addFormRow(document.getElementById('student-form-container'), 'student-form'));
-            addStaffRowBtn.addEventListener('click', () => addFormRow(document.getElementById('staff-form-container'), 'staff-form'));
-
-            function handleFormSubmit(event, role) {
-                event.preventDefault();
-                const formData = new FormData(event.target);
-                const data = {
-                    role: role,
-                    users: []
-                };
-
-                const usernames = formData.getAll('username[]');
-                const fullNames = formData.getAll('full_name[]');
-                const emails = formData.getAll('email[]');
-                const phones = formData.getAll('phone[]');
-
-                for (let i = 0; i < usernames.length; i++) {
-                    data.users.push({
-                        username: usernames[i],
-                        full_name: fullNames[i],
-                        email: emails[i],
-                        phone: phones[i]
-                    });
-                }
-
-                fetch('/add_multiple_users', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.success) {
-                            const listContainer = role === 'student' ? studentList : staffList;
-                            listContainer.innerHTML = '';
-                            result.users.forEach(user => {
-                                const listItem = document.createElement('div');
-                                listItem.className = 'alert alert-success';
-                                listItem.innerHTML = `
-                        <strong>${user.username}</strong> added successfully.<br>
-                        Temporary password: <strong>${user.password}</strong>
-                    `;
-                                listContainer.appendChild(listItem);
-                            });
-                            event.target.reset();
-                            if (role === 'student') {
-                                document.getElementById('student-form-container').innerHTML = '';
-                                addFormRow(document.getElementById('student-form-container'), 'student-form');
-                            } else {
-                                document.getElementById('staff-form-container').innerHTML = '';
-                                addFormRow(document.getElementById('staff-form-container'), 'staff-form');
-                            }
-                        } else {
-                            alert(result.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while adding the users.');
-                    });
-            }
-
-            addStudentForm.addEventListener('submit', event => handleFormSubmit(event, 'student'));
-            addStaffForm.addEventListener('submit', event => handleFormSubmit(event, 'staff'));
-        });
+    </script>
+    <script>
         document.addEventListener('DOMContentLoaded', function () {
             const addStudentForm = document.getElementById('add-student-form');
             const addStaffForm = document.getElementById('add-staff-form');
