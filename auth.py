@@ -57,3 +57,4 @@ def callback():
     else:
         flash("Google authentication failed.", "error")
         return redirect(url_for("auth.login"))
+    
