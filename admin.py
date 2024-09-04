@@ -225,12 +225,26 @@ def add_block():
 @login_required
 def get_blocks():
     if session["user"]["role"] != "admin":
-        return {"success": False, "message": "Unauthorized"}, 403
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    blocks = list(db.blocks.find({}, {"_id": 1, "name": 1}))
-    for block in blocks:
-        block["_id"] = str(block["_id"])
-    return jsonify({"success": True, "blocks": blocks})
+    try:
+        blocks = list(db.blocks.find())
+        for block in blocks:
+            block['_id'] = str(block['_id'])  # Convert ObjectId to string
+            # Ensure each block has a 'floors' array
+            if 'floors' not in block or not isinstance(block['floors'], list):
+                block['floors'] = []
+            # Ensure each floor has the required room count fields
+            for floor in block['floors']:
+                floor['singleRooms'] = floor.get('singleRooms', 0)
+                floor['doubleRooms'] = floor.get('doubleRooms', 0)
+                floor['tripleRooms'] = floor.get('tripleRooms', 0)
+        
+        print("Sending blocks:", blocks)  # Log the blocks being sent
+        return jsonify({"success": True, "blocks": blocks})
+    except Exception as e:
+        print(f"Error in get_blocks: {str(e)}")  # Log any errors
+        return jsonify({"success": False, "message": f"Error retrieving blocks: {str(e)}"}), 500
 
 @admin_bp.route("/get_floors/<block_id>", methods=["GET"])
 @login_required

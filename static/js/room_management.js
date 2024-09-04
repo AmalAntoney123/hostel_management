@@ -74,33 +74,36 @@ function displayBlocks(blocks) {
     console.log("Displaying blocks:", blocks);
     const blockList = $('#block-list');
     blockList.empty();
-
+    
     if (!blocks || blocks.length === 0) {
         console.log("No blocks to display");
         blockList.append('<p>No blocks available.</p>');
         return;
     }
-
+    
     blocks.forEach(block => {
-        console.log("Processing block:", block);
+        console.log("Processing block:", JSON.stringify(block, null, 2));
         let totalRooms = 0;
+        let floorCount = 0;
         if (block.floors && Array.isArray(block.floors)) {
+            floorCount = block.floors.length;
             totalRooms = block.floors.reduce((sum, floor) => {
-                return sum + parseInt(floor.singleRooms || 0) +
-                    parseInt(floor.doubleRooms || 0) +
-                    parseInt(floor.tripleRooms || 0);
+                console.log("Processing floor:", floor);
+                return sum + parseInt(floor.singleRooms || 0) + 
+                             parseInt(floor.doubleRooms || 0) + 
+                             parseInt(floor.tripleRooms || 0);
             }, 0);
         } else {
             console.warn("Block doesn't have a valid floors array:", block);
         }
-
+        
         const blockHtml = `
             <div class="card mb-3 block-card" data-block-name="${block.name ? block.name.toLowerCase() : ''}">
                 <div class="card-header">
                     <h4>${block.name || 'Unnamed Block'}</h4>
                 </div>
                 <div class="card-body">
-                    <p><strong>Total Floors:</strong> ${block.floors ? block.floors.length : 'N/A'}</p>
+                    <p><strong>Total Floors:</strong> ${floorCount}</p>
                     <p><strong>Total Rooms:</strong> ${totalRooms}</p>
                     <button class="btn btn-primary btn-sm" onclick="editBlock('${block._id}')">Edit</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteBlock('${block._id}')">Delete</button>
