@@ -2,6 +2,8 @@ from flask import Blueprint, redirect, render_template, request, jsonify, sessio
 from werkzeug.security import generate_password_hash
 from config import users
 from utils import login_required
+import pandas as pd
+import io
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -64,3 +66,65 @@ def get_users(role):
 
     user_list = list(users.find({"role": role}, {"_id": 0, "password": 0}))
     return jsonify({"success": True, "users": user_list})
+
+@admin_bp.route("/bulk_upload_users", methods=["POST"])
+@login_required
+def bulk_upload_users():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    if 'excelFile' not in request.files:
+        return {"success": False, "message": "No file part"}, 400
+
+    file = request.files['excelFile']
+    user_type = request.form.get('userType')
+
+    if file.filename == '':
+        return {"success": False, "message": "No selected file"}, 400
+
+    if user_type not in ['student', 'staff']:
+        return {"success": False, "message": "Invalid user type"}, 400
+
+    try:
+        df = pd.read_excel(file) if file.filename.endswith(('.xls', '.xlsx')) else pd.read_csv(file)
+        required_columns = ['username', 'full_name', 'email', 'phone']
+        
+        if not all(col in df.columns for col in required_columns):
+            return {"success": False, "message": "Missing required columns"}, 400
+
+        success_count = 0
+        error_count = 0
+
+        for _, row in df.iterrows():
+            username = row['username']
+            full_name = row['full_name']
+            email = row['email']
+            phone = str(row['phone'])
+
+            existing_user = users.find_one({"username": username})
+            if existing_user:
+                error_count += 1
+                continue
+
+            password = f"{username}@{phone[-4:]}"
+            hashed_password = generate_password_hash(password)
+
+            new_user = {
+                "username": username,
+                "full_name": full_name,
+                "email": email,
+                "phone": phone,
+                "role": user_type,
+                "password": hashed_password
+            }
+
+            users.insert_one(new_user)
+            success_count += 1
+
+        return {
+            "success": True,
+            "message": f"Uploaded {success_count} users successfully. {error_count} users failed."
+        }
+
+    except Exception as e:
+        return {"success": False, "message": f"Error processing file: {str(e)}"}, 500

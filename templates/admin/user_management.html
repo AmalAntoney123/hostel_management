@@ -7,6 +7,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="add-staff-tab" data-bs-toggle="tab" data-bs-target="#add-staff" type="button" role="tab" aria-controls="add-staff" aria-selected="false">Add Staff</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">Bulk Upload</button>
+        </li>
     </ul>
     <div class="tab-content" id="userManagementTabContent">
         <div class="tab-pane fade show active" id="add-student" role="tabpanel" aria-labelledby="add-student-tab">
@@ -25,9 +28,8 @@
                                 <input type="text" class="form-control" name="full_name"
                                     placeholder="Full Name" required>
                             </div>
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="col">
+                                <input type="email" class="form-control" id="email" name="email"  placeholder="Email Address"required>
                             </div>
                             <div class="col">
                                 <input type="tel" class="form-control" name="phone" placeholder="Phone"
@@ -41,7 +43,7 @@
                     </form>
                     <div id="student-list" class="mt-4">
                         <h4>Student List</h4>
-                        <table class="table table-striped">
+                        <table id="studentTable" class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Username</th>
@@ -89,7 +91,7 @@
                     </form>
                     <div id="staff-list" class="mt-4">
                         <h4>Staff List</h4>
-                        <table class="table table-striped">
+                        <table id="staffTable" class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Username</th>
@@ -106,5 +108,60 @@
                 </div>
             </div>
         </div>
+        <div class="tab-pane fade" id="bulk-upload" role="tabpanel" aria-labelledby="bulk-upload-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Bulk Upload Users</h3>
+                </div>
+                <div class="card-body">
+                    <form id="bulk-upload-form" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="excelFile" class="form-label">Upload Excel File</label>
+                            <input type="file" class="form-control" id="excelFile" name="excelFile" accept=".xlsx, .xls, .csv" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userType" class="form-label">User Type</label>
+                            <select class="form-select" id="userType" name="userType" required>
+                                <option value="">Select user type</option>
+                                <option value="student">Student</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload and Process</button>
+                    </form>
+                    <div id="upload-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Add these scripts at the end of the file, just before the closing </div> tag -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#studentTable').DataTable();
+        $('#staffTable').DataTable();
+
+        $('#bulk-upload-form').on('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            
+            $.ajax({
+                url: '/bulk_upload_users',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    $('#upload-result').html('<div class="alert alert-success">Upload successful. ' + response.message + '</div>');
+                },
+                error: function(xhr, status, error) {
+                    $('#upload-result').html('<div class="alert alert-danger">Upload failed. ' + xhr.responseJSON.message + '</div>');
+                }
+            });
+        });
+    });
+</script>
