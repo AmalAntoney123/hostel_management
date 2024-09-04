@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Hostel Cloudsuite</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/css/style.css') }}">
+    <style>
+        .login-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: 80px; /* Adjust this value based on your header height */
+            padding-bottom: 60px; /* Adjust this value based on your footer height */
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header position-fixed w-100">
+        <div class="container">
+            <nav class="navbar navbar-expand-xl py-0">
+                <div class="logo">
+                    <a class="navbar-brand py-0 me-0" href="{{ url_for('index') }}">Hostel Cloudsuite</a>
+                </div>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">                                             
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" aria-current="page" href="{{ url_for('index') }}">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">About</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">Services</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">Contact</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <a class="btn btn-warning btn-hover-secondery text-capitalize" href="{{ url_for('login') }}">Login</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <section class="login-section position-relative overflow-hidden">
+        <div class="container">
+            <div class="row d-flex flex-wrap align-items-center justify-content-center">
+                <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-8 col-sm-10 col-12">
+                    <div class="card border-0 shadow">
+                        <div class="card-body p-5">
+                            <h2 class="fs-2 text-black mb-4 text-center">Login</h2>
+                            <form method="POST" action="{{ url_for('login') }}">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                                <button type="submit" class="btn btn-warning btn-hover-secondery w-100">Login</button>
+                            </form>
+                            {% with messages = get_flashed_messages() %}
+                                {% if messages %}
+                                    <div class="alert alert-danger mt-3" role="alert">
+                                        {{ messages[0] }}
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="copyrights text-center blue-light fw-500">
+                        © <span id="autodate">2023</span> - All Rights Reserved by Hostel Cloudsuite
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
+</body>
+</html>

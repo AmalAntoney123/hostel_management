@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hostel Cloudsuite</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/css/style.css') }}">
+</head>
+<body>
+    <header class="main-header position-fixed w-100">
+        <div class="container">
+            <nav class="navbar navbar-expand-xl py-0">
+                <div class="logo">
+                    <a class="navbar-brand py-0 me-0" href="#">Hostel Cloudsuite</a>
+                </div>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">                                             
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" aria-current="page" href="#">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">About</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">Services</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-capitalize" href="#">Contact</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <a class="btn btn-warning btn-hover-secondery text-capitalize" href="/login">Login</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero-banner position-relative overflow-hidden">
+        <div class="container">
+            <div class="row d-flex flex-wrap align-items-center">
+                <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
+                    <div class="position-relative left-hero-color">
+                        <h1 class="mb-0 fw-bold">
+                            Welcome to Hostel Cloudsuite
+                        </h1>
+                        <p>Streamlined hostel management for administrators, students, staff, and parents.</p>
+                        <a href="#" class="btn btn-warning btn-hover-secondery">Learn More</a>
+                    </div>
+                </div>
+                <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
+                    <div class="position-relative right-hero-color">
+                        <img src="{{ url_for('static', filename='assets/images/hero/youth-hostel.jpg') }}" class="img-fluid"> 
+                    </div>          
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="service position-relative overflow-hidden">
+        <div class="container position-relative">
+            <div class="row">
+                <div class="col-12"><small class="fs-7 d-block">Our Services</small></div>
+                <div class="col-12 d-flex align-items-center justify-content-between">
+                    <h2 class="fs-2 text-black mb-0">Key Features of Hostel Cloudsuite</h2>
+                </div>
+            </div>
+            <div class="row d-flex flex-wrap justify-content-center step-row">
+                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12 text-center">
+                    <div class="card border-0 shadow">
+                        <div class="card-body">
+                            <div class="icon-round overflow-hidden rounded-circle position-relative d-flex align-items-center justify-content-center mx-auto text-center">
+                                <i class="ti ti-user text-primary position-relative"></i>
+                            </div>
+                            <h3 class="fs-4">User Management</h3>
+                            <p class="fs-7 mb-0 fw-500">Efficient management of admin, student, staff, and parent accounts.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12 text-center">
+                    <div class="card border-0 shadow">
+                        <div class="card-body">
+                            <div class="icon-round overflow-hidden rounded-circle position-relative d-flex align-items-center justify-content-center mx-auto text-center">
+                                <i class="ti ti-home text-primary position-relative"></i>
+                            </div>
+                            <h3 class="fs-4">Room Management</h3>
+                            <p class="fs-7 mb-0 fw-500">Streamlined room allocation and maintenance tracking.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12 text-center">
+                    <div class="card border-0 shadow">
+                        <div class="card-body">
+                            <div class="icon-round overflow-hidden rounded-circle position-relative d-flex align-items-center justify-content-center mx-auto text-center">
+                                <i class="ti ti-report-money text-primary position-relative"></i>
+                            </div>
+                            <h3 class="fs-4">Fee Management</h3>
+                            <p class="fs-7 mb-0 fw-500">Easy fee collection and payment tracking system.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="copyrights text-center blue-light fw-500">
+                        © <span id="autodate">2023</span> - All Rights Reserved by Hostel Cloudsuite
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
+</body>
+</html>
