@@ -127,7 +127,7 @@
                     <li>
                         <hr class="dropdown-divider">
                     </li>
-                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">Sign out</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Sign out</a></li>
                 </ul>
             </div>
         </nav>
@@ -144,117 +144,15 @@
 
             <!-- Tab content -->
             <div class="tab-content">
-                <div class="tab-pane fade" id="dashboard" role="tabpanel">
-                    <h2>Dashboard</h2>
-                    <!-- Add dashboard content here -->
-                </div>
-                <div class="tab-pane fade" id="user-management" role="tabpanel">
-                    <h2>User Management</h2>
-                    <ul class="nav nav-tabs mb-3" id="userManagementTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="add-student-tab" data-bs-toggle="tab" data-bs-target="#add-student" type="button" role="tab" aria-controls="add-student" aria-selected="true">Add Students</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="add-staff-tab" data-bs-toggle="tab" data-bs-target="#add-staff" type="button" role="tab" aria-controls="add-staff" aria-selected="false">Add Staff</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="userManagementTabContent">
-                        <div class="tab-pane fade show active" id="add-student" role="tabpanel" aria-labelledby="add-student-tab">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3>Add Students</h3>
-                                </div>
-                                <div class="card-body">
-                                    <form id="add-student-form">
-                                        <div class="row mb-3">
-                                            <div class="col">
-                                                <input type="text" class="form-control" name="username"
-                                                    placeholder="Username" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="text" class="form-control" name="full_name"
-                                                    placeholder="Full Name" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="email" class="form-control" name="email"
-                                                    placeholder="Email" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
-                                                    required>
-                                            </div>
-                                            <div class="col-auto">
-                                                <button type="submit" class="btn btn-primary">Add Student</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                    <div id="student-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="add-staff" role="tabpanel" aria-labelledby="add-staff-tab">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3>Add Staff</h3>
-                                </div>
-                                <div class="card-body">
-                                    <form id="add-staff-form">
-                                        <div class="row mb-3">
-                                            <div class="col">
-                                                <input type="text" class="form-control" name="username"
-                                                    placeholder="Username" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="text" class="form-control" name="full_name"
-                                                    placeholder="Full Name" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="email" class="form-control" name="email"
-                                                    placeholder="Email" required>
-                                            </div>
-                                            <div class="col">
-                                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
-                                                    required>
-                                            </div>
-                                            <div class="col-auto">
-                                                <button type="submit" class="btn btn-primary">Add Staff</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                    <div id="staff-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="room-management" role="tabpanel">
-                    <h2>Room Management</h2>
-                    <!-- Add room management content here -->
-                </div>
-                <div class="tab-pane fade" id="fee-management" role="tabpanel">
-                    <h2>Fee Management</h2>
-                    <!-- Add fee management content here -->
-                </div>
-                <div class="tab-pane fade" id="attendance" role="tabpanel">
-                    <h2>Attendance</h2>
-                    <!-- Add attendance content here -->
-                </div>
-                <div class="tab-pane fade" id="complaints" role="tabpanel">
-                    <h2>Complaints</h2>
-                    <!-- Add complaints content here -->
-                </div>
-                <div class="tab-pane fade" id="inventory" role="tabpanel">
-                    <h2>Inventory</h2>
-                    <!-- Add inventory content here -->
-                </div>
-                <div class="tab-pane fade" id="visitors" role="tabpanel">
-                    <h2>Visitors</h2>
-                    <!-- Add visitors content here -->
-                </div>
-                <div class="tab-pane fade" id="reports" role="tabpanel">
-                    <h2>Reports</h2>
-                    <!-- Add reports content here -->
-                </div>
+                {% include 'admin/dashboard.html' %}
+                {% include 'admin/user_management.html' %}
+                {% include 'admin/room_management.html' %}
+                {% include 'admin/fee_management.html' %}
+                {% include 'admin/attendance.html' %}
+                {% include 'admin/complaints.html' %}
+                {% include 'admin/inventory.html' %}
+                {% include 'admin/visitors.html' %}
+                {% include 'admin/reports.html' %}
             </div>
         </div>
     </div>
@@ -262,6 +160,7 @@
     <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/user_management.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
@@ -274,55 +173,6 @@
                     content.classList.toggle('expanded');
                 });
             });
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const addStudentForm = document.getElementById('add-student-form');
-            const addStaffForm = document.getElementById('add-staff-form');
-            const studentList = document.getElementById('student-list');
-            const staffList = document.getElementById('staff-list');
-
-            function handleFormSubmit(event, role) {
-                event.preventDefault();
-                const formData = new FormData(event.target);
-                const data = Object.fromEntries(formData.entries());
-                data.role = role;
-
-                fetch('/add_user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.success) {
-                            const listItem = document.createElement('div');
-                            listItem.className = 'alert alert-success';
-                            listItem.innerHTML = `
-                            <strong>${result.username}</strong> added successfully.<br>
-                            Temporary password: <strong>${result.password}</strong>
-                        `;
-                            if (role === 'student') {
-                                studentList.appendChild(listItem);
-                            } else {
-                                staffList.appendChild(listItem);
-                            }
-                            event.target.reset();
-                        } else {
-                            alert(result.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while adding the user.');
-                    });
-            }
-
-            addStudentForm.addEventListener('submit', event => handleFormSubmit(event, 'student'));
-            addStaffForm.addEventListener('submit', event => handleFormSubmit(event, 'staff'));
         });
     </script>
 </body>

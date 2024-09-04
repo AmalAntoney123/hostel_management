@@ -1,0 +1,110 @@
+<div class="tab-pane fade" id="user-management" role="tabpanel">
+    <h2>User Management</h2>
+    <ul class="nav nav-tabs mb-3" id="userManagementTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="add-student-tab" data-bs-toggle="tab" data-bs-target="#add-student" type="button" role="tab" aria-controls="add-student" aria-selected="true">Add Students</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="add-staff-tab" data-bs-toggle="tab" data-bs-target="#add-staff" type="button" role="tab" aria-controls="add-staff" aria-selected="false">Add Staff</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="userManagementTabContent">
+        <div class="tab-pane fade show active" id="add-student" role="tabpanel" aria-labelledby="add-student-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Add Students</h3>
+                </div>
+                <div class="card-body">
+                    <form id="add-student-form">
+                        <div class="row mb-3">
+                            <div class="col">
+                                <input type="text" class="form-control" name="username"
+                                    placeholder="Username" required>
+                            </div>
+                            <div class="col">
+                                <input type="text" class="form-control" name="full_name"
+                                    placeholder="Full Name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="col">
+                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
+                                    required>
+                            </div>
+                            
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary">Add Student</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="student-list" class="mt-4">
+                        <h4>Student List</h4>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-list-body">
+                                <!-- Student list will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="add-staff" role="tabpanel" aria-labelledby="add-staff-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Add Staff</h3>
+                </div>
+                <div class="card-body">
+                    <form id="add-staff-form">
+                        <div class="row mb-3">
+                            <div class="col">
+                                <input type="text" class="form-control" name="username"
+                                    placeholder="Username" required>
+                            </div>
+                            <div class="col">
+                                <input type="text" class="form-control" name="full_name"
+                                    placeholder="Full Name" required>
+                            </div>
+                            <div class="col">
+                                <input type="email" class="form-control" name="email"
+                                    placeholder="Email" required>
+                            </div>
+                            <div class="col">
+                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
+                                    required>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary">Add Staff</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="staff-list" class="mt-4">
+                        <h4>Staff List</h4>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staff-list-body">
+                                <!-- Staff list will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

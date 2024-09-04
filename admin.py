@@ -52,3 +52,15 @@ def add_user():
         "username": username,
         "password": password
     }
+
+@admin_bp.route("/get_users/<role>", methods=["GET"])
+@login_required
+def get_users(role):
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    if role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid role"}, 400
+
+    user_list = list(users.find({"role": role}, {"_id": 0, "password": 0}))
+    return jsonify({"success": True, "users": user_list})
