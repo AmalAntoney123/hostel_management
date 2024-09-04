@@ -22,18 +22,18 @@
                         <div class="row mb-3">
                             <div class="col">
                                 <input type="text" class="form-control" name="username"
-                                    placeholder="Username" required>
+                                    placeholder="Username" required onkeypress="return /[a-zA-Z0-9_]/i.test(event.key)">
                             </div>
                             <div class="col">
                                 <input type="text" class="form-control" name="full_name"
-                                    placeholder="Full Name" required>
+                                    placeholder="Full Name" required onkeypress="return /[a-zA-Z\s]/i.test(event.key)">
                             </div>
                             <div class="col">
                                 <input type="email" class="form-control" id="email" name="email"  placeholder="Email Address"required>
                             </div>
                             <div class="col">
                                 <input type="tel" class="form-control" name="phone" placeholder="Phone"
-                                    required>
+                                    required onkeypress="return /[0-9+]/i.test(event.key)">
                             </div>
                             
                             <div class="col-auto">
@@ -50,6 +50,8 @@
                                     <th>Full Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="student-list-body">
@@ -70,11 +72,11 @@
                         <div class="row mb-3">
                             <div class="col">
                                 <input type="text" class="form-control" name="username"
-                                    placeholder="Username" required>
+                                    placeholder="Username" required onkeypress="return /[a-zA-Z0-9_]/i.test(event.key)">
                             </div>
                             <div class="col">
                                 <input type="text" class="form-control" name="full_name"
-                                    placeholder="Full Name" required>
+                                    placeholder="Full Name" required onkeypress="return /[a-zA-Z\s]/i.test(event.key)">
                             </div>
                             <div class="col">
                                 <input type="email" class="form-control" name="email"
@@ -82,7 +84,7 @@
                             </div>
                             <div class="col">
                                 <input type="tel" class="form-control" name="phone" placeholder="Phone"
-                                    required>
+                                    required onkeypress="return /[0-9+]/i.test(event.key)">
                             </div>
                             <div class="col-auto">
                                 <button type="submit" class="btn btn-primary">Add Staff</button>
@@ -98,6 +100,8 @@
                                     <th>Full Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="staff-list-body">
@@ -140,28 +144,3 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
-<script>
-    $(document).ready(function() {
-        $('#studentTable').DataTable();
-        $('#staffTable').DataTable();
-
-        $('#bulk-upload-form').on('submit', function(e) {
-            e.preventDefault();
-            var formData = new FormData(this);
-            
-            $.ajax({
-                url: '/bulk_upload_users',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    $('#upload-result').html('<div class="alert alert-success">Upload successful. ' + response.message + '</div>');
-                },
-                error: function(xhr, status, error) {
-                    $('#upload-result').html('<div class="alert alert-danger">Upload failed. ' + xhr.responseJSON.message + '</div>');
-                }
-            });
-        });
-    });
-</script>

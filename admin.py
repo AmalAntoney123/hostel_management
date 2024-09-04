@@ -43,7 +43,8 @@ def add_user():
         "email": email,
         "phone": phone,
         "role": role,
-        "password": hashed_password
+        "password": hashed_password,
+        "is_active": True  # Add this line
     }
 
     users.insert_one(new_user)
@@ -64,7 +65,11 @@ def get_users(role):
     if role not in ["student", "staff"]:
         return {"success": False, "message": "Invalid role"}, 400
 
-    user_list = list(users.find({"role": role}, {"_id": 0, "password": 0}))
+    # Use inclusion projection instead of mixing inclusion and exclusion
+    user_list = list(users.find(
+        {"role": role}, 
+        {"_id": 0, "username": 1, "full_name": 1, "email": 1, "phone": 1, "is_active": 1}
+    ))
     return jsonify({"success": True, "users": user_list})
 
 @admin_bp.route("/bulk_upload_users", methods=["POST"])
@@ -115,7 +120,8 @@ def bulk_upload_users():
                 "email": email,
                 "phone": phone,
                 "role": user_type,
-                "password": hashed_password
+                "password": hashed_password,
+                "is_active": True  # Add this line
             }
 
             users.insert_one(new_user)
@@ -128,3 +134,49 @@ def bulk_upload_users():
 
     except Exception as e:
         return {"success": False, "message": f"Error processing file: {str(e)}"}, 500
+
+@admin_bp.route("/toggle_user_status", methods=["POST"])
+@login_required
+def toggle_user_status():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    username = data.get("username")
+    role = data.get("role")
+
+    if not username or role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid request"}, 400
+
+    user = users.find_one({"username": username, "role": role})
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    new_status = not user.get("is_active", True)
+    users.update_one({"username": username}, {"$set": {"is_active": new_status}})
+
+    return {"success": True, "message": f"User status updated to {'active' if new_status else 'disabled'}"}
+
+@admin_bp.route("/reset_user_password", methods=["POST"])
+@login_required
+def reset_user_password():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    username = data.get("username")
+    role = data.get("role")
+
+    if not username or role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid request"}, 400
+
+    user = users.find_one({"username": username, "role": role})
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    new_password = f"{username}@{user['phone'][-4:]}"
+    hashed_password = generate_password_hash(new_password)
+
+    users.update_one({"username": username}, {"$set": {"password": hashed_password}})
+
+    return {"success": True, "message": "Password reset successfully", "password": new_password}
