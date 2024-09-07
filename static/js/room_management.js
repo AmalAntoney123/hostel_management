@@ -2,6 +2,7 @@ $(document).ready(function () {
     loadBlocks();
     loadStudents();
     loadAllRoomAssignments();
+    loadRoomChangeRequests();
 
     $('#assign-room-form').submit(assignRoom);
     $('#block-select').change(loadFloors);
@@ -37,7 +38,7 @@ $(document).ready(function () {
         };
 
         $.ajax({
-            url: '/update_block',
+            url: '/admin/update_block',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(data),
@@ -52,11 +53,74 @@ $(document).ready(function () {
             }
         });
     });
+
+    // Submit room change request
+    $('#room-change-form').submit(function(e) {
+        e.preventDefault();
+        const blockId = $('#block-select').val();
+        const floorIndex = $('#floor-select').val();
+        const roomNumber = $('#room-select').val();
+        const reason = $('#reason').val();
+
+        const requestData = {
+            blockId: blockId,
+            floorIndex: parseInt(floorIndex, 10),
+            roomNumber: roomNumber,
+            reason: reason
+        };
+
+        $.ajax({
+            url: '/student/request_room_change',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+            success: function(response) {
+                if (response.success) {
+                    alert('Room change request submitted successfully.');
+                    $('#room-change-form')[0].reset();
+                    loadRoomChangeStatus();
+                } else {
+                    alert('Error submitting room change request: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error submitting room change request. Please try again later.');
+            }
+        });
+    });
+
+    function loadRoomChangeStatus() {
+        $.ajax({
+            url: '/student/get_room_change_status',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    if (response.request) {
+                        $('#room-change-status').html(`
+                            <p><strong>Status:</strong> ${response.request.status}</p>
+                            <p><strong>Requested Room:</strong> ${response.request.room_number} (Block ${response.request.block_name}, Floor ${response.request.floor_index + 1})</p>
+                            <p><strong>Reason:</strong> ${response.request.reason}</p>
+                            ${response.request.admin_note ? `<p><strong>Admin Note:</strong> ${response.request.admin_note}</p>` : ''}
+                        `);
+                    } else {
+                        $('#room-change-status').html('<p>No active room change request.</p>');
+                    }
+                } else {
+                    $('#room-change-status').html('<p>Error: ' + response.message + '</p>');
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#room-change-status').html('<p>Error loading room change status. Please try again later.</p>');
+            }
+        });
+    }
+
+    loadRoomChangeStatus();
 });
 
 function loadBlocks() {
     console.log("Loading blocks...");
-    $.get('/get_blocks', function (response) {
+    $.get('/admin/get_blocks', function (response) {
         console.log("Received raw response:", response);
         if (response.success) {
             console.log("Blocks loaded successfully:", response.blocks);
@@ -67,6 +131,14 @@ function loadBlocks() {
         }
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error("AJAX request failed:", textStatus, errorThrown);
+    });
+}
+
+function populateBlockDropdown(blocks) {
+    const blockSelect = $('#block-select');
+    blockSelect.empty().append('<option value="">Select Block</option>');
+    blocks.forEach(block => {
+        blockSelect.append(`<option value="${block._id}">${block.name}</option>`);
     });
 }
 
@@ -131,7 +203,7 @@ function displayBlocks(blocks) {
 function loadFloors() {
     const blockId = $('#block-select').val();
     if (blockId) {
-        $.get(`/get_floors/${blockId}`, function (response) {
+        $.get(`/admin/get_floors/${blockId}`, function (response) {
             if (response.success) {
                 populateFloorDropdown(response.floors);
             }
@@ -146,7 +218,7 @@ function loadAvailableRooms() {
     const blockId = $('#block-select').val();
     const floorIndex = $('#floor-select').val();
     if (blockId && floorIndex !== '') {
-        $.get(`/get_available_rooms/${blockId}/${floorIndex}`, function (response) {
+        $.get(`/admin/get_available_rooms/${blockId}/${floorIndex}`, function (response) {
             if (response.success) {
                 populateRoomDropdown(response.rooms);
             }
@@ -157,7 +229,7 @@ function loadAvailableRooms() {
 }
 
 function loadStudents() {
-    $.get('/get_unassigned_students', function (response) {
+    $.get('/admin/get_unassigned_students', function (response) {
         if (response.success) {
             populateStudentDropdown(response.students);
         }
@@ -181,7 +253,7 @@ function assignRoom(e) {
     const data = { blockId, floorIndex, roomNumber, studentId, roomType, isAttached };
 
     $.ajax({
-        url: '/assign_room',
+        url: '/admin/assign_room',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
@@ -203,7 +275,7 @@ function assignRoom(e) {
 }
 
 function loadAllRoomAssignments() {
-    $.get('/get_all_room_assignments', function (response) {
+    $.get('/admin/get_all_room_assignments', function (response) {
         if (response.success) {
             const allAssignmentsList = $('#all-room-assignments');
             allAssignmentsList.empty();
@@ -228,7 +300,7 @@ function loadAllRoomAssignments() {
 function unassignRoom(assignmentId) {
     if (confirm('Are you sure you want to unassign this room?')) {
         $.ajax({
-            url: `/unassign_room/${assignmentId}`,
+            url: `/admin/unassign_room/${assignmentId}`,
             method: 'POST',
             success: function (response) {
                 if (response.success) {
@@ -241,14 +313,6 @@ function unassignRoom(assignmentId) {
             }
         });
     }
-}
-
-function populateBlockDropdown(blocks) {
-    const blockSelect = $('#block-select');
-    blockSelect.empty().append('<option value="">Select Block</option>');
-    blocks.forEach(block => {
-        blockSelect.append(`<option value="${block._id}">${block.name}</option>`);
-    });
 }
 
 function populateFloorDropdown(floors) {
@@ -294,14 +358,15 @@ function addBlock(e) {
             singleRooms: 0,
             doubleRooms: 0,
             tripleRooms: 0,
-            singleAttachedRooms: '',
-            doubleAttachedRooms: '',
-            tripleAttachedRooms: ''
+            singleAttachedRooms: 0,
+            doubleAttachedRooms: 0,
+            tripleAttachedRooms: 0
         }))
     };
 
+
     $.ajax({
-        url: '/add_block',
+        url: '/admin/add_block',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
@@ -314,12 +379,17 @@ function addBlock(e) {
             } else {
                 alert('Failed to add block: ' + response.message);
             }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.error('Error:', textStatus, errorThrown);
+            console.log('Response:', jqXHR.responseText);
+            alert('An error occurred while adding the block. Please check the console for more details.');
         }
     });
 }
 
 function editBlock(blockId) {
-    $.get(`/get_block/${blockId}`, function (response) {
+    $.get(`/admin/get_block/${blockId}`, function (response) {
         if (response.success) {
             const block = response.block;
             $('#edit-block-id').val(block._id);
@@ -397,7 +467,7 @@ function addFloorInputs(container, floorIndex, floorData = {}) {
 function deleteBlock(blockId) {
     if (confirm('Are you sure you want to delete this block? This action cannot be undone.')) {
         $.ajax({
-            url: `/delete_block/${blockId}`,
+            url: `/admin/delete_block/${blockId}`,
             method: 'POST',
             success: function (response) {
                 if (response.success) {
@@ -413,4 +483,48 @@ function deleteBlock(blockId) {
             }
         });
     }
+}
+
+function loadRoomChangeRequests() {
+    $.get('/admin/get_room_change_requests', function (response) {
+        if (response.success) {
+            const requestsList = $('#room-change-requests-list');
+            requestsList.empty();
+            response.requests.forEach(request => {
+                requestsList.append(`
+                    <tr>
+                        <td>${request.student_name}</td>
+                        <td>${request.current_room}</td>
+                        <td>${request.requested_room}</td>
+                        <td>${request.reason}</td>
+                        <td>${request.status}</td>
+                        <td>
+                            <button class="btn btn-success btn-sm" onclick="processRoomChangeRequest('${request._id}', 'approve')">Approve</button>
+                            <button class="btn btn-danger btn-sm" onclick="processRoomChangeRequest('${request._id}', 'reject')">Reject</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+    });
+}
+
+function processRoomChangeRequest(requestId, action) {
+    const adminNote = prompt(`Enter a note for ${action}ing this request:`);
+    if (adminNote === null) return;
+
+    $.ajax({
+        url: '/admin/process_room_change_request',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ requestId, action, adminNote }),
+        success: function (response) {
+            if (response.success) {
+                alert(`Request ${action}ed successfully`);
+                loadRoomChangeRequests();
+            } else {
+                alert(`Failed to ${action} request: ${response.message}`);
+            }
+        }
+    });
 }

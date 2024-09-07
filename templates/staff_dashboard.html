@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Dashboard - Hostel Cloudsuite</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='dist/css/style.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
@@ -124,42 +125,22 @@ html, body {
 
             <!-- Tab content -->
             <div class="tab-content">
-                <div class="tab-pane fade" id="dashboard" role="tabpanel">
-                    <h2>Dashboard</h2>
-                    <!-- Add dashboard content here -->
-                </div>
-                <div class="tab-pane fade" id="profile" role="tabpanel">
-                    <h2>Profile Management</h2>
-                    <!-- Add profile management content here -->
-                </div>
-                <div class="tab-pane fade" id="schedules" role="tabpanel">
-                    <h2>Schedules</h2>
-                    <!-- Add schedules content here -->
-                </div>
-                <div class="tab-pane fade" id="attendance" role="tabpanel">
-                    <h2>Attendance</h2>
-                    <!-- Add attendance content here -->
-                </div>
-                <div class="tab-pane fade" id="complaints" role="tabpanel">
-                    <h2>Complaints</h2>
-                    <!-- Add complaints content here -->
-                </div>
-                <div class="tab-pane fade" id="inventory" role="tabpanel">
-                    <h2>Inventory</h2>
-                    <!-- Add inventory content here -->
-                </div>
-                <div class="tab-pane fade" id="visitors" role="tabpanel">
-                    <h2>Visitors</h2>
-                    <!-- Add visitors content here -->
-                </div>
-                <div class="tab-pane fade" id="meal-planning" role="tabpanel">
-                    <h2>Meal Planning</h2>
-                    <!-- Add meal planning content here -->
-                </div>
+                {% include 'staff/dashboard.html' %}
+                {% include 'staff/profile.html' %}
+                {% include 'staff/schedules.html' %}
+                {% include 'staff/attendance.html' %}
+                {% include 'staff/complaints.html' %}
+                {% include 'staff/inventory.html' %}
+                {% include 'staff/visitors.html' %}
+                {% include 'staff/meal_planning.html' %}
             </div>
         </div>
     </div>
+    <!-- DataTables -->
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
 
+    
     <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
@@ -167,45 +148,4 @@ html, body {
         // ... (same script as student_dashboard.html) ...
     </script>
 </body>
-</html>
-                </div>
-            </nav>
-        </div>
-    </header>
-
-    <section class="hero-banner position-relative overflow-hidden">
-        <div class="container">
-            <div class="row d-flex flex-wrap align-items-center">
-                <div class="col-12">
-                    <h1 class="mb-4 fw-bold">Welcome, Staff {{ session['user']['username'] }}</h1>
-                    <div class="card border-0 shadow mt-5">
-                        <div class="card-body">
-                            <h2 class="fs-4 mb-3">Staff Dashboard</h2>
-                            <p>Here you can manage students and room maintenance tasks.</p>
-                            <!-- Add more staff-specific content here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="footer">
-        <!-- ... (same as index.html) ... -->
-    </footer>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const content = document.getElementById('content');
-            const sidebarCollapse = document.querySelectorAll('#sidebarCollapse');
-
-            sidebarCollapse.forEach(button => {
-                button.addEventListener('click', function() {
-                    sidebar.classList.toggle('collapsed');
-                    content.classList.toggle('expanded');
-                });
-            });
-        });
-    </script></body>
 </html>

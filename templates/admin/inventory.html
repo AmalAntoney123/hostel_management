@@ -1,0 +1,133 @@
+<div class="tab-pane fade" id="inventory" role="tabpanel">
+    <h2>Inventory Management</h2>
+    <ul class="nav nav-tabs mb-3" id="inventoryTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-requests-tab" data-bs-toggle="tab"
+                data-bs-target="#pending-requests" type="button" role="tab" aria-controls="pending-requests"
+                aria-selected="true">Pending Requests</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="all-requests-tab" data-bs-toggle="tab" data-bs-target="#all-requests"
+                type="button" role="tab" aria-controls="all-requests" aria-selected="false">All Requests</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="inventoryTabContent">
+        <div class="tab-pane fade show active" id="pending-requests" role="tabpanel"
+            aria-labelledby="pending-requests-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Pending Inventory Requests</h3>
+                </div>
+                <div class="card-body">
+                    <table id="pendingRequestsTable" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Staff Name</th>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Reason</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingRequestsTableBody">
+                            <!-- Pending requests will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="all-requests" role="tabpanel" aria-labelledby="all-requests-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>All Inventory Requests</h3>
+                </div>
+                <div class="card-body">
+                    <table id="allRequestsTable" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Staff Name</th>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Admin Comment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allRequestsTableBody">
+                            <!-- All requests will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        function loadInventoryRequests(status = 'all') {
+            $.ajax({
+                url: '/admin/get_inventory_requests?status=' + status,
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        let tableBody = status === 'pending' ? $('#pendingRequestsTableBody') : $('#allRequestsTableBody');
+                        tableBody.empty();
+                        response.requests.forEach(function(request) {
+                            let row = `<tr>
+                                <td>${request.staff_name}</td>
+                                <td>${request.item_name}</td>
+                                <td>${request.quantity}</td>
+                                <td>${request.reason}</td>`;
+                            if (status === 'pending') {
+                                row += `<td>
+                                    <button class="btn btn-sm btn-success approve-btn" data-id="${request._id}">Approve</button>
+                                    <button class="btn btn-sm btn-danger reject-btn" data-id="${request._id}">Reject</button>
+                                </td>`;
+                            } else {
+                                row += `<td>${request.status}</td>
+                                    <td>${request.admin_comment || ''}</td>`;
+                            }
+                            row += '</tr>';
+                            tableBody.append(row);
+                        });
+                    } else {
+                        alert('Error loading inventory requests');
+                    }
+                }
+            });
+        }
+
+        loadInventoryRequests('pending');
+        loadInventoryRequests('all');
+
+        $(document).on('click', '.approve-btn, .reject-btn', function() {
+            let requestId = $(this).data('id');
+            let action = $(this).hasClass('approve-btn') ? 'approve' : 'reject';
+            let adminComment = prompt("Enter a comment for this action:");
+
+            $.ajax({
+                url: '/admin/process_inventory_request',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    requestId: requestId,
+                    action: action,
+                    adminComment: adminComment
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        loadInventoryRequests('pending');
+                        loadInventoryRequests('all');
+                    } else {
+                        alert('Error processing request');
+                    }
+                }
+            });
+        });
+    });
+</script>

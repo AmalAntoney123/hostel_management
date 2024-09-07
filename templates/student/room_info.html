@@ -1,0 +1,241 @@
+<div class="tab-pane fade" id="room-info" role="tabpanel">
+    <h2>Room Information</h2>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Current Room</h3>
+                </div>
+                <div class="card-body">
+                    <div id="current-room-info">
+                        <!-- Current room information will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Request Room Change</h3>
+                </div>
+                <div class="card-body">
+                    <form id="room-change-form">
+                        <div class="mb-3">
+                            <label for="block-select" class="form-label">Block</label>
+                            <select class="form-select" id="block-select" required>
+                                <option value="">Select Block</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="floor-select" class="form-label">Floor</label>
+                            <select class="form-select" id="floor-select" required>
+                                <option value="">Select Floor</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="room-select" class="form-label">Room</label>
+                            <select class="form-select" id="room-select" required>
+                                <option value="">Select Room</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Change</label>
+                            <textarea class="form-control" id="reason" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Room Change Request Status</h3>
+        </div>
+        <div class="card-body" id="room-change-status">
+            <!-- Room change request status will be displayed here -->
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Load current room information
+    function loadCurrentRoomInfo() {
+        $.ajax({
+            url: '/student/get_current_room_info',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    if (response.room_info) {
+                        $('#current-room-info').html(`
+                            <p><strong>Block:</strong> ${response.room_info.block_name}</p>
+                            <p><strong>Floor:</strong> ${response.room_info.floor_index + 1}</p>
+                            <p><strong>Room Number:</strong> ${response.room_info.room_number}</p>
+                            <p><strong>Room Type:</strong> ${response.room_info.room_type}</p>
+                        `);
+                    } else {
+                        $('#current-room-info').html('<p>No room assigned yet.</p>');
+                    }
+                } else {
+                    $('#current-room-info').html('<p>Error: ' + response.message + '</p>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                console.error('Response:', xhr.responseText);
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    $('#current-room-info').html('<p>Error loading room information: ' + response.message + '</p>');
+                } catch (e) {
+                    $('#current-room-info').html('<p>Error loading room information. Please try again later.</p>');
+                }
+            }
+        });
+    }
+
+    // Load blocks for room change request
+    function loadBlocks() {
+        $.ajax({
+            url: '/student/get_blocks',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    $('#block-select').empty().append('<option value="">Select Block</option>');
+                    response.blocks.forEach(function(block) {
+                        $('#block-select').append(`<option value="${block._id}">${block.name}</option>`);
+                    });
+                }
+            }
+        });
+    }
+
+    // Load floors when a block is selected
+    $('#block-select').change(function() {
+        const blockId = $(this).val();
+        if (blockId) {
+            $.ajax({
+                url: `/student/get_floors/${blockId}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#floor-select').empty().append('<option value="">Select Floor</option>');
+                        response.floors.forEach(function(floor) {
+                            $('#floor-select').append(`<option value="${floor.index}">Floor ${floor.number}</option>`);
+                        });
+                    }
+                }
+            });
+        } else {
+            $('#floor-select').empty().append('<option value="">Select Floor</option>');
+            $('#room-select').empty().append('<option value="">Select Room</option>');
+        }
+    });
+
+    // Load rooms when a floor is selected
+    $('#floor-select').change(function() {
+        const blockId = $('#block-select').val();
+        const floorIndex = $(this).val();
+        if (blockId && floorIndex !== '') {
+            $.ajax({
+                url: `/student/get_available_rooms/${blockId}/${floorIndex}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#room-select').empty().append('<option value="">Select Room</option>');
+                        response.rooms.forEach(function(room) {
+                            $('#room-select').append(`<option value="${room.number}">${room.number} (${room.type})</option>`);
+                        });
+                    }
+                }
+            });
+        } else {
+            $('#room-select').empty().append('<option value="">Select Room</option>');
+        }
+    });
+
+    // Submit room change request
+    $('#room-change-form').submit(function(e) {
+        e.preventDefault();
+        const blockId = $('#block-select').val();
+        const floorIndex = $('#floor-select').val();
+        const roomNumber = $('#room-select').val();
+        const reason = $('#reason').val();
+
+        const requestData = {
+            blockId: blockId,
+            floorIndex: parseInt(floorIndex, 10),  // Ensure this is an integer
+            roomNumber: roomNumber,
+            reason: reason
+        };
+
+        console.log("Sending room change request data:", requestData);
+
+        $.ajax({
+            url: '/student/request_room_change',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+            success: function(response) {
+                if (response.success) {
+                    alert('Room change request submitted successfully.');
+                    $('#room-change-form')[0].reset();
+                    loadRoomChangeStatus();
+                } else {
+                    alert('Error submitting room change request: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                console.error('Error response:', xhr.responseText);
+                alert('Error submitting room change request. Please try again later.');
+            }
+        });
+    });
+
+    // Load room change status
+    function loadRoomChangeStatus() {
+        $.ajax({
+            url: '/student/get_room_change_status',
+            type: 'GET',
+            success: function(response) {
+                var statusElement = $('#room-change-status');
+                if (!statusElement.length) {
+                    console.error('Room change status element not found');
+                    return;
+                }
+                
+                if (response.success) {
+                    if (response.request) {
+                        statusElement.html(`
+                            <p><strong>Status:</strong> ${response.request.status}</p>
+                            <p><strong>Requested Room:</strong> ${response.request.room_number} (Block ${response.request.block_name}, Floor ${response.request.floor_index + 1})</p>
+                            <p><strong>Reason:</strong> ${response.request.reason}</p>
+                            ${response.request.admin_note ? `<p><strong>Admin Note:</strong> ${response.request.admin_note}</p>` : ''}
+                        `);
+                    } else {
+                        statusElement.html('<p>No active room change request.</p>');
+                    }
+                } else {
+                    statusElement.html('<p>Error: ' + (response.message || 'Unknown error') + '</p>');
+                }
+            },
+            error: function(xhr, status, error) {
+                var statusElement = $('#room-change-status');
+                if (statusElement.length) {
+                    statusElement.html('<p>Error loading room change status. Please try again later.</p>');
+                }
+                console.error('AJAX error:', status, error);
+                console.error('Response:', xhr.responseText);
+            }
+        });
+    }
+
+    // Call loadRoomChangeStatus when the page loads
+    loadRoomChangeStatus();
+
+    // Initial load
+    loadCurrentRoomInfo();
+    loadBlocks();
+});
+</script>

@@ -1,0 +1,98 @@
+<div class="tab-pane fade" id="complaints" role="tabpanel">
+    <h2>Complaints Management</h2>
+    <table class="table table-striped" id="complaintsTable">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Subject</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="complaintsTableBody">
+            <!-- Complaints will be populated here -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+$(document).ready(function() {
+    let complaintsTable;
+
+    function loadComplaints() {
+        $.ajax({
+            url: '/admin/get_complaints',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    let tableBody = $('#complaintsTableBody');
+                    tableBody.empty();
+                    response.complaints.forEach(function(complaint) {
+                        let row = `
+                            <tr>
+                                <td>${complaint.user_id}</td>
+                                <td>${complaint.user_role}</td>
+                                <td>${complaint.subject}</td>
+                                <td>${complaint.description}</td>
+                                <td>${complaint.status}</td>
+                                <td>${new Date(complaint.timestamp).toLocaleString()}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary update-status" data-id="${complaint._id}">Update Status</button>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.append(row);
+                    });
+                    
+                    if (complaintsTable) {
+                        complaintsTable.destroy();
+                    }
+                    complaintsTable = $('#complaintsTable').DataTable();
+                    
+                    $('.update-status').click(function() {
+                        let complaintId = $(this).data('id');
+                        let newStatus = prompt("Enter new status (pending/in-progress/resolved):");
+                        let adminComment = prompt("Enter admin comment:");
+                        
+                        if (newStatus) {
+                            updateComplaintStatus(complaintId, newStatus, adminComment);
+                        }
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("Failed to load complaints: " + error);
+            }
+        });
+    }
+
+    function updateComplaintStatus(complaintId, newStatus, adminComment) {
+        $.ajax({
+            url: '/admin/update_complaint_status',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                complaintId: complaintId,
+                status: newStatus,
+                adminComment: adminComment
+            }),
+            success: function(response) {
+                if (response.success) {
+                    alert("Complaint status updated successfully");
+                    loadComplaints();
+                } else {
+                    alert("Failed to update complaint status");
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("An error occurred while updating complaint status: " + error);
+            }
+        });
+    }
+
+    loadComplaints();
+});
+</script>

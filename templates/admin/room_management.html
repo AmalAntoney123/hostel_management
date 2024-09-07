@@ -10,6 +10,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="view-assignments-tab" data-bs-toggle="tab" data-bs-target="#view-assignments" type="button" role="tab" aria-controls="view-assignments" aria-selected="false">View Assignments</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="room-change-requests-tab" data-bs-toggle="tab" data-bs-target="#room-change-requests" type="button" role="tab" aria-controls="room-change-requests" aria-selected="false">Room Change Requests</button>
+        </li>
     </ul>
     <div class="tab-content" id="roomManagementTabContent">
         <div class="tab-pane fade show active" id="manage-blocks" role="tabpanel" aria-labelledby="manage-blocks-tab">
@@ -93,6 +96,24 @@
                 </thead>
                 <tbody id="all-room-assignments">
                     <!-- Room assignments will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="tab-pane fade" id="room-change-requests" role="tabpanel" aria-labelledby="room-change-requests-tab">
+            <h3>Room Change Requests</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Current Room</th>
+                        <th>Requested Room</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="room-change-requests-list">
+                    <!-- Room change requests will be populated here -->
                 </tbody>
             </table>
         </div>

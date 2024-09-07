@@ -1,0 +1,96 @@
+<div class="tab-pane fade" id="complaints" role="tabpanel">
+    <h2>Complaints</h2>
+    <form id="complaintForm">
+        <div class="mb-3">
+            <label for="subject" class="form-label">Subject</label>
+            <input type="text" class="form-control" id="subject" required>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Complaint</button>
+    </form>
+    <hr>
+    <h3>Your Complaints</h3>
+    <table class="table table-striped" id="userComplaintsTable">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Admin Comment</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="userComplaintsTableBody">
+            <!-- User complaints will be populated here -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#complaintForm').submit(function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: '/submit_complaint',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                subject: $('#subject').val(),
+                description: $('#description').val()
+            }),
+            success: function(response) {
+                if (response.success) {
+                    alert("Complaint submitted successfully");
+                    $('#complaintForm')[0].reset();
+                    loadUserComplaints();
+                } else {
+                    alert("Failed to submit complaint: " + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("An error occurred: " + error);
+            }
+        });
+    });
+
+    let userComplaintsTable;
+
+    function loadUserComplaints() {
+        $.ajax({
+            url: '/staff/get_user_complaints',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    let tableBody = $('#userComplaintsTableBody');
+                    tableBody.empty();
+                    response.complaints.forEach(function(complaint) {
+                        let row = `
+                            <tr>
+                                <td>${complaint.subject}</td>
+                                <td>${complaint.description}</td>
+                                <td>${complaint.status}</td>
+                                <td>${complaint.admin_comment || '-'}</td>
+                                <td>${new Date(complaint.timestamp).toLocaleString()}</td>
+                            </tr>
+                        `;
+                        tableBody.append(row);
+                    });
+                    
+                    if (userComplaintsTable) {
+                        userComplaintsTable.destroy();
+                    }
+                    userComplaintsTable = $('#userComplaintsTable').DataTable();
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("Failed to load complaints: " + error);
+            }
+        });
+    }
+
+    loadUserComplaints();
+});
+</script>

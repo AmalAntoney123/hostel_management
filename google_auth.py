@@ -4,6 +4,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
+import google.auth.exceptions
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / '.env')
@@ -38,5 +39,9 @@ def verify_google_token(token):
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             raise ValueError('Wrong issuer.')
         return idinfo
-    except ValueError:
+    except ValueError as e:
+        print(f"Token verification failed: {str(e)}")
+        return None
+    except google.auth.exceptions.GoogleAuthError as e:
+        print(f"Google Auth Error: {str(e)}")
         return None

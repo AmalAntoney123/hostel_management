@@ -33,28 +33,35 @@ def google_login():
 
 @auth_bp.route("/callback")
 def callback():
-    flow.fetch_token(authorization_response=request.url)
-    credentials = flow.credentials
-    token = credentials.id_token
-    user_info = verify_google_token(token)
+    try:
+        flow.fetch_token(authorization_response=request.url)
+        credentials = flow.credentials
+        token = credentials.id_token
+        user_info = verify_google_token(token)
 
-    if user_info:
-        email = user_info['email']
-        user = users.find_one({"email": email})
+        if user_info:
+            email = user_info['email']
+            user = users.find_one({"email": email})
 
-        if user:
-            session["user"] = {"username": user["username"], "role": user["role"]}
-            # Update the user document to include Google ID
-            users.update_one(
-                {"_id": user["_id"]},
-                {"$set": {"google_id": user_info['sub']}}
-            )
-            flash(f"Welcome back, {user['username']}!", "success")
-            return redirect(url_for(f"{user['role']}.{user['role']}_dashboard"))
+            if user:
+                session["user"] = {
+                    "username": user["username"],
+                    "role": user["role"],
+                    "_id": str(user["_id"])  # Add this line
+                }
+                users.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {"google_id": user_info['sub']}}
+                )
+                flash(f"Welcome back, {user['username']}!", "success")
+                return redirect(url_for(f"{user['role']}.{user['role']}_dashboard"))
+            else:
+                flash("No account found with this email. Please contact the administrator or use regular login.", "error")
+                return redirect(url_for("auth.login"))
         else:
-            flash("No account found with this email. Please contact the administrator or use regular login.", "error")
+            flash("Google authentication failed: Unable to verify token", "error")
             return redirect(url_for("auth.login"))
-    else:
-        flash("Google authentication failed.", "error")
+    except Exception as e:
+        flash(f"Google authentication failed: {str(e)}", "error")
         return redirect(url_for("auth.login"))
-    
+

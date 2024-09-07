@@ -1,0 +1,107 @@
+<div class="tab-pane fade" id="inventory" role="tabpanel">
+    <div class="card">
+        <div class="card-header">
+            <h3>Request New Item</h3>
+        </div>
+        <div class="card-body">
+            <form id="inventoryRequestForm">
+                <div class="mb-3">
+                    <label for="itemName" class="form-label">Item Name</label>
+                    <input type="text" class="form-control" id="itemName" name="itemName" required>
+                </div>
+                <div class="mb-3">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" required min="1">
+                </div>
+                <div class="mb-3">
+                    <label for="reason" class="form-label">Reason</label>
+                    <textarea class="form-control" id="reason" name="reason" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Request</button>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="tab-pane fade" id="my-requests" role="tabpanel" aria-labelledby="my-requests-tab">
+    <div class="card">
+        <div class="card-header">
+            <h3>My Inventory Requests</h3>
+        </div>
+        <div class="card-body">
+            <table id="requestsTable" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Admin Comment</th>
+                    </tr>
+                </thead>
+                <tbody id="requestsTableBody">
+                    <!-- Requests will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        function loadInventoryRequests() {
+            $.ajax({
+                url: '/staff/get_inventory_requests',
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        let tableBody = $('#requestsTableBody');
+                        tableBody.empty();
+                        response.requests.forEach(function(request) {
+                            let row = `<tr>
+                                <td>${request.item_name}</td>
+                                <td>${request.quantity}</td>
+                                <td>${request.reason}</td>
+                                <td>${request.status}</td>
+                                <td>${request.admin_comment || ''}</td>
+                            </tr>`;
+                            tableBody.append(row);
+                        });
+                    } else {
+                        alert('Error loading inventory requests');
+                    }
+                }
+            });
+        }
+
+        loadInventoryRequests();
+
+        $('#inventoryRequestForm').submit(function(e) {
+            e.preventDefault();
+            let formData = {
+                itemName: $('#itemName').val(),
+                quantity: $('#quantity').val(),
+                reason: $('#reason').val()
+            };
+
+            $.ajax({
+                url: '/staff/submit_inventory_request',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        $('#inventoryRequestForm')[0].reset();
+                        loadInventoryRequests();
+                    } else {
+                        alert('Error submitting request');
+                    }
+                }
+            });
+        });
+    });
+</script>

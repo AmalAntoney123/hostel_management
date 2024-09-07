@@ -18,7 +18,7 @@
                     <h3>Add Students</h3>
                 </div>
                 <div class="card-body">
-                    <form id="add-student-form">
+                    <form id="add-student-form" onsubmit="return handleFormSubmit(event, 'student')">
                         <div class="row mb-3">
                             <div class="col">
                                 <input type="text" class="form-control" name="username"
@@ -68,7 +68,7 @@
                     <h3>Add Staff</h3>
                 </div>
                 <div class="card-body">
-                    <form id="add-staff-form">
+                    <form id="add-staff-form" onsubmit="return handleFormSubmit(event, 'staff')">
                         <div class="row mb-3">
                             <div class="col">
                                 <input type="text" class="form-control" name="username"
@@ -118,7 +118,7 @@
                     <h3>Bulk Upload Users</h3>
                 </div>
                 <div class="card-body">
-                    <form id="bulk-upload-form" enctype="multipart/form-data">
+                    <form id="bulk-upload-form" enctype="multipart/form-data" onsubmit="return handleBulkUpload(event)">
                         <div class="mb-3">
                             <label for="excelFile" class="form-label">Upload Excel File</label>
                             <input type="file" class="form-control" id="excelFile" name="excelFile" accept=".xlsx, .xls, .csv" required>
