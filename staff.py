@@ -64,7 +64,9 @@ def staff_get_user_complaints():
 @staff_bp.route("/staff/submit_inventory_request", methods=["POST"])
 @login_required
 def staff_submit_inventory_request():
-    if session["user"]["role"] != "staff":
+    print(f"Current user role: {session.get('user', {}).get('role')}")  # Debug print
+    if session.get("user", {}).get("role") != "staff":
+        print("Unauthorized access attempt to submit_inventory_request")  # Debug print
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
     try:
@@ -78,7 +80,6 @@ def staff_submit_inventory_request():
 
         inventory_request = {
             "staff_id": session["user"]["username"],
-            "staff_name": session["user"]["full_name"],
             "item_name": item_name,
             "quantity": int(quantity),
             "reason": reason,

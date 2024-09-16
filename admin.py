@@ -950,26 +950,31 @@ def process_room_change_request():
     return jsonify({"success": True, "message": f"Request {action}ed successfully"})
 
 
-@admin_bp.route("/get_inventory_requests", methods=["GET"])
+@admin_bp.route("/get_pending_inventory_requests", methods=["GET"])
 @login_required
-def get_inventory_requests():
+def get_pending_inventory_requests():
     if session["user"]["role"] != "admin":
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    try:
-        status = request.args.get('status', 'all')
-        query = {} if status == 'all' else {"status": status}
-        
-        requests = list(db.inventory_requests.find(query).sort("timestamp", -1))
-        for request in requests:
-            request["_id"] = str(request["_id"])
-            request["timestamp"] = request["timestamp"].isoformat()
+    pending_requests = list(db.inventory_requests.find({"status": "pending"}))
+    for request in pending_requests:
+        request["_id"] = str(request["_id"])
+        request["timestamp"] = request["timestamp"].isoformat()
 
-        return jsonify({"success": True, "requests": requests})
-    except Exception as e:
-        print(f"Error retrieving inventory requests: {str(e)}")
-        return jsonify({"success": False, "message": f"Error retrieving inventory requests: {str(e)}"}), 500
+    return jsonify({"success": True, "requests": pending_requests})
 
+@admin_bp.route("/get_all_inventory_requests", methods=["GET"])
+@login_required
+def get_all_inventory_requests():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    all_requests = list(db.inventory_requests.find())
+    for request in all_requests:
+        request["_id"] = str(request["_id"])
+        request["timestamp"] = request["timestamp"].isoformat()
+
+    return jsonify({"success": True, "requests": all_requests})
 
 @admin_bp.route("/process_inventory_request", methods=["POST"])
 @login_required
@@ -977,31 +982,31 @@ def process_inventory_request():
     if session["user"]["role"] != "admin":
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    try:
-        data = request.json
-        request_id = data.get("requestId")
-        action = data.get("action")
-        admin_comment = data.get("adminComment")
+    data = request.json
+    request_id = data.get("requestId")
+    action = data.get("action")
+    admin_comment = data.get("adminComment")
 
-        if not all([request_id, action]) or action not in ["approve", "reject"]:
-            return jsonify({"success": False, "message": "Invalid request"}), 400
+    if not all([request_id, action]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
 
-        result = db.inventory_requests.update_one(
-            {"_id": ObjectId(request_id)},
-            {
-                "$set": {
-                    "status": "approved" if action == "approve" else "rejected",
-                    "admin_comment": admin_comment,
-                    "processed_at": datetime.utcnow(),
-                }
-            },
-        )
+    if action not in ["approve", "reject"]:
+        return jsonify({"success": False, "message": "Invalid action"}), 400
 
-        if result.modified_count > 0:
-            return jsonify({"success": True, "message": f"Inventory request {action}ed successfully"})
-        else:
-            return jsonify({"success": False, "message": "Request not found or no changes made"}), 404
+    result = db.inventory_requests.update_one(
+        {"_id": ObjectId(request_id)},
+        {
+            "$set": {
+                "status": action,
+                "admin_comment": admin_comment,
+                "processed_at": datetime.utcnow(),
+            }
+        },
+    )
 
-    except Exception as e:
-        print(f"Error processing inventory request: {str(e)}")
-        return jsonify({"success": False, "message": f"Error processing inventory request: {str(e)}"}), 500
+    if result.modified_count > 0:
+        return jsonify({"success": True, "message": f"Request {action}ed successfully"})
+    else:
+        return jsonify({"success": False, "message": "Request not found or no changes made"}), 404
+
+

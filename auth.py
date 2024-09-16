@@ -13,7 +13,11 @@ def login():
         password = request.form["password"]
         user = users.find_one({"username": username})
         if user and check_password_hash(user["password"], password):
-            session["user"] = {"username": user["username"], "role": user["role"]}
+            session["user"] = {
+                "username": user["username"],
+                "role": user["role"],
+                "_id": str(user["_id"])  # Add this line
+            }
             flash(f"Welcome, {user['username']}!", "success")
             return redirect(url_for(f'{user["role"]}.{user["role"]}_dashboard'))
         else:

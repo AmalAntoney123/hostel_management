@@ -66,68 +66,110 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+
 <script>
-    $(document).ready(function() {
-        function loadInventoryRequests(status = 'all') {
-            $.ajax({
-                url: '/admin/get_inventory_requests?status=' + status,
-                method: 'GET',
-                success: function(response) {
-                    if (response.success) {
-                        let tableBody = status === 'pending' ? $('#pendingRequestsTableBody') : $('#allRequestsTableBody');
-                        tableBody.empty();
-                        response.requests.forEach(function(request) {
-                            let row = `<tr>
-                                <td>${request.staff_name}</td>
-                                <td>${request.item_name}</td>
-                                <td>${request.quantity}</td>
-                                <td>${request.reason}</td>`;
-                            if (status === 'pending') {
-                                row += `<td>
-                                    <button class="btn btn-sm btn-success approve-btn" data-id="${request._id}">Approve</button>
-                                    <button class="btn btn-sm btn-danger reject-btn" data-id="${request._id}">Reject</button>
-                                </td>`;
-                            } else {
-                                row += `<td>${request.status}</td>
-                                    <td>${request.admin_comment || ''}</td>`;
-                            }
-                            row += '</tr>';
-                            tableBody.append(row);
-                        });
-                    } else {
-                        alert('Error loading inventory requests');
-                    }
-                }
-            });
-        }
+$(document).ready(function() {
+    // Initialize DataTables
+    var pendingRequestsTable = $('#pendingRequestsTable').DataTable();
+    var allRequestsTable = $('#allRequestsTable').DataTable();
 
-        loadInventoryRequests('pending');
-        loadInventoryRequests('all');
-
-        $(document).on('click', '.approve-btn, .reject-btn', function() {
-            let requestId = $(this).data('id');
-            let action = $(this).hasClass('approve-btn') ? 'approve' : 'reject';
-            let adminComment = prompt("Enter a comment for this action:");
-
-            $.ajax({
-                url: '/admin/process_inventory_request',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    requestId: requestId,
-                    action: action,
-                    adminComment: adminComment
-                }),
-                success: function(response) {
-                    if (response.success) {
-                        alert(response.message);
-                        loadInventoryRequests('pending');
-                        loadInventoryRequests('all');
-                    } else {
-                        alert('Error processing request');
-                    }
-                }
-            });
+    // Load pending requests
+    function loadPendingRequests() {
+        $.ajax({
+            url: '/admin/get_pending_inventory_requests',
+            method: 'GET',
+            success: function(response) {
+                pendingRequestsTable.clear();
+                response.requests.forEach(function(request) {
+                    pendingRequestsTable.row.add([
+                        request.staff_id,
+                        request.item_name,
+                        request.quantity,
+                        request.reason,
+                        '<button class="btn btn-success btn-sm approve-btn" data-id="' + request._id + '">Approve</button>' +
+                        '<button class="btn btn-danger btn-sm reject-btn ms-2" data-id="' + request._id + '">Reject</button>'
+                    ]);
+                });
+                pendingRequestsTable.draw();
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching pending requests:", error);
+            }
         });
+    }
+
+    // Load all requests
+    function loadAllRequests() {
+        $.ajax({
+            url: '/admin/get_all_inventory_requests',
+            method: 'GET',
+            success: function(response) {
+                allRequestsTable.clear();
+                response.requests.forEach(function(request) {
+                    allRequestsTable.row.add([
+                        request.staff_id,
+                        request.item_name,
+                        request.quantity,
+                        request.reason,
+                        request.status,
+                        request.admin_comment || ''
+                    ]);
+                });
+                allRequestsTable.draw();
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching all requests:", error);
+            }
+        });
+    }
+
+    // Load initial data
+    loadPendingRequests();
+    loadAllRequests();
+
+    // Handle approve button click
+    $('#pendingRequestsTable').on('click', '.approve-btn', function() {
+        var requestId = $(this).data('id');
+        processRequest(requestId, 'approve');
     });
+
+    // Handle reject button click
+    $('#pendingRequestsTable').on('click', '.reject-btn', function() {
+        var requestId = $(this).data('id');
+        processRequest(requestId, 'reject');
+    });
+
+    function processRequest(requestId, action) {
+        var adminComment = prompt("Enter a comment for this action:");
+        $.ajax({
+            url: '/admin/process_inventory_request',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                requestId: requestId,
+                action: action,
+                adminComment: adminComment
+            }),
+            success: function(response) {
+                alert(response.message);
+                loadPendingRequests();
+                loadAllRequests();
+            },
+            error: function(xhr, status, error) {
+                console.error("Error processing request:", error);
+                alert("Error processing request. Please try again.");
+            }
+        });
+    }
+
+    // Refresh data when switching tabs
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        var target = $(e.target).attr("data-bs-target");
+        if (target === "#pending-requests") {
+            loadPendingRequests();
+        } else if (target === "#all-requests") {
+            loadAllRequests();
+        }
+    });
+});
 </script>
