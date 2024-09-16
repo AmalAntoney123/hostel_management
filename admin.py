@@ -15,6 +15,431 @@ import io
 from bson import ObjectId, errors as bson_errors  # Import ObjectId for MongoDB
 import traceback
 from bson import ObjectId
+from datetime import datetime, timedelta
+
+admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+# Add this line to define the room_assignments collection
+room_assignments = db.room_assignments
+
+
+@admin_bp.route("/dashboard")
+@login_required
+def admin_dashboard():
+    if session["user"]["role"] != "admin":
+        return redirect(url_for("index"))
+    return render_template("admin_dashboard.html")
+
+
+@admin_bp.route("/add_user", methods=["POST"])
+@login_required
+def add_user():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    username = data.get("username")
+    full_name = data.get("full_name")
+    email = data.get("email")
+    phone = data.get("phone")
+    role = data.get("role")
+
+    if not all([username, full_name, email, phone, role]):
+        return {"success": False, "message": "Missing required fields"}, 400
+
+    existing_user = users.find_one({"username": username})
+    if existing_user:
+        return {"success": False, "message": "Username already exists"}, 400
+
+    password = f"{username}@{phone[-4:]}"
+    hashed_password = generate_password_hash(password)
+
+    new_user = {
+        "username": username,
+        "full_name": full_name,
+        "email": email,
+        "phone": phone,
+        "role": role,
+        "password": hashed_password,
+        "is_active": True,  # Add this line
+    }
+
+    users.insert_one(new_user)
+
+    return {
+        "success": True,
+        "message": f"{role.capitalize()} added successfully",
+        "username": username,
+        "password": password,
+    }
+
+
+@admin_bp.route("/get_users/<role>", methods=["GET"])
+@login_required
+def get_users(role):
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    if role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid role"}, 400
+
+    # Use inclusion projection instead of mixing inclusion and exclusion
+    user_list = list(
+        users.find(
+            {"role": role},
+            {
+                "_id": 0,
+                "username": 1,
+                "full_name": 1,
+                "email": 1,
+                "phone": 1,
+                "is_active": 1,
+            },
+        )
+    )
+    return jsonify({"success": True, "users": user_list})
+
+
+@admin_bp.route("/bulk_upload_users", methods=["POST"])
+@login_required
+def bulk_upload_users():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    if "excelFile" not in request.files:
+        return {"success": False, "message": "No file part"}, 400
+
+    file = request.files["excelFile"]
+    user_type = request.form.get("userType")
+
+    if file.filename == "":
+        return {"success": False, "message": "No selected file"}, 400
+
+    if user_type not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid user type"}, 400
+
+    try:
+        df = (
+            pd.read_excel(file)
+            if file.filename.endswith((".xls", ".xlsx"))
+            else pd.read_csv(file)
+        )
+        required_columns = ["username", "full_name", "email", "phone"]
+
+        if not all(col in df.columns for col in required_columns):
+            return {"success": False, "message": "Missing required columns"}, 400
+
+        success_count = 0
+        error_count = 0
+
+        for _, row in df.iterrows():
+            username = row["username"]
+            full_name = row["full_name"]
+            email = row["email"]
+            phone = str(row["phone"])
+
+            existing_user = users.find_one({"username": username})
+            if existing_user:
+                error_count += 1
+                continue
+
+            password = f"{username}@{phone[-4:]}"
+            hashed_password = generate_password_hash(password)
+
+            new_user = {
+                "username": username,
+                "full_name": full_name,
+                "email": email,
+                "phone": phone,
+                "role": user_type,
+                "password": hashed_password,
+                "is_active": True,  # Add this line
+            }
+
+            users.insert_one(new_user)
+            success_count += 1
+
+        return {
+            "success": True,
+            "message": f"Uploaded {success_count} users successfully. {error_count} users failed.",
+        }
+
+    except Exception as e:
+        return {"success": False, "message": f"Error processing file: {str(e)}"}, 500
+
+
+@admin_bp.route("/toggle_user_status", methods=["POST"])
+@login_required
+def toggle_user_status():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    username = data.get("username")
+    role = data.get("role")
+
+    if not username or role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid request"}, 400
+
+    user = users.find_one({"username": username, "role": role})
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    new_status = not user.get("is_active", True)
+    users.update_one({"username": username}, {"$set": {"is_active": new_status}})
+
+    return {
+        "success": True,
+        "message": f"User status updated to {'active' if new_status else 'disabled'}",
+    }
+
+
+@admin_bp.route("/reset_user_password", methods=["POST"])
+@login_required
+def reset_user_password():
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    username = data.get("username")
+    role = data.get("role")
+
+    if not username or role not in ["student", "staff"]:
+        return {"success": False, "message": "Invalid request"}, 400
+
+    user = users.find_one({"username": username, "role": role})
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    new_password = f"{username}@{user['phone'][-4:]}"
+    hashed_password = generate_password_hash(new_password)
+
+    users.update_one({"username": username}, {"$set": {"password": hashed_password}})
+
+    return {
+        "success": True,
+        "message": "Password reset successfully",
+        "password": new_password,
+    }
+
+
+@admin_bp.route("/add_block", methods=["POST"])
+@login_required
+def add_block():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        block_name = data.get("blockName")
+        floors = data.get("floors")
+
+        if not block_name or not floors:
+            return (
+                jsonify({"success": False, "message": "Missing required fields"}),
+                400,
+            )
+
+        # Update the floor structure
+        for floor in floors:
+            for room_type in ["single", "double", "triple"]:
+                total_rooms = floor.get(f"{room_type}Rooms", 0)
+                attached_rooms = floor.get(f"{room_type}AttachedRooms", 0)
+                floor[f"{room_type}Rooms"] = total_rooms
+                floor[f"{room_type}AttachedRooms"] = min(attached_rooms, total_rooms)
+
+        new_block = {"name": block_name, "floors": floors}
+
+        result = db.blocks.insert_one(new_block)
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Block added successfully",
+                "blockId": str(result.inserted_id),
+            }
+        )
+
+    except Exception as e:
+        print(f"Error in add_block: {str(e)}")
+        return (
+            jsonify({"success": False, "message": f"Error adding block: {str(e)}"}),
+            500,
+        )
+
+
+@admin_bp.route("/get_blocks", methods=["GET"])
+@login_required
+def get_blocks():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        blocks = list(db.blocks.find())
+        for block in blocks:
+            block["_id"] = str(block["_id"])  # Convert ObjectId to string
+            # Ensure each block has a 'floors' array
+            if "floors" not in block or not isinstance(block["floors"], list):
+                block["floors"] = []
+            # Ensure each floor has the required room count fields
+            for floor in block["floors"]:
+                floor["singleRooms"] = floor.get("singleRooms", 0)
+                floor["doubleRooms"] = floor.get("doubleRooms", 0)
+                floor["tripleRooms"] = floor.get("tripleRooms", 0)
+
+        print("Sending blocks:", blocks)  # Log the blocks being sent
+        return jsonify({"success": True, "blocks": blocks})
+    except Exception as e:
+        print(f"Error in get_blocks: {str(e)}")  # Log any errors
+        return (
+            jsonify(
+                {"success": False, "message": f"Error retrieving blocks: {str(e)}"}
+            ),
+            500,
+        )
+
+
+@admin_bp.route("/get_floors/<block_id>", methods=["GET"])
+@login_required
+def get_floors(block_id):
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    block = db.blocks.find_one({"_id": ObjectId(block_id)})
+    if not block:
+        return {"success": False, "message": "Block not found"}, 404
+
+    return jsonify({"success": True, "floors": block["floors"]})
+
+
+@admin_bp.route("/get_available_rooms/<block_id>/<int:floor_index>", methods=["GET"])
+@login_required
+def get_available_rooms(block_id, floor_index):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        block = db.blocks.find_one({"_id": ObjectId(block_id)})
+        if not block or floor_index >= len(block["floors"]):
+            return (
+                jsonify({"success": False, "message": "Block or floor not found"}),
+                404,
+            )
+
+        floor = block["floors"][floor_index]
+        rooms = []
+        for room_type in ["single", "double", "triple"]:
+            capacity = (
+                1 if room_type == "single" else (2 if room_type == "double" else 3)
+            )
+
+            for is_attached in [True, False]:
+                room_numbers = floor[
+                    f"{room_type}{'Attached' if is_attached else 'NonAttached'}RoomNumbers"
+                ]
+                for room_number in room_numbers:
+                    occupancy = db.room_assignments.count_documents(
+                        {
+                            "block_id": str(block_id),
+                            "floor_index": floor_index,
+                            "room_number": room_number,
+                        }
+                    )
+                    if occupancy < capacity:
+                        rooms.append(
+                            {
+                                "number": room_number,
+                                "type": room_type,
+                                "attached": is_attached,
+                                "available_beds": capacity - occupancy,
+                            }
+                        )
+
+        return jsonify({"success": True, "rooms": rooms})
+    except Exception as e:
+        print(f"Error in get_available_rooms: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": f"Error getting available rooms: {str(e)}",
+                }
+            ),
+            500,
+        )
+
+
+@admin_bp.route("/copy_floor_layout/<block_id>", methods=["POST"])
+@login_required
+def copy_floor_layout(block_id):
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    data = request.json
+    source_floor_index = data.get("sourceFloorIndex")
+    target_floor_indices = data.get("targetFloorIndices")
+
+    if source_floor_index is None or target_floor_indices is None:
+        return {"success": False, "message": "Missing required fields"}, 400
+
+    try:
+        block = db.blocks.find_one({"_id": ObjectId(block_id)})
+        if not block:
+            return {"success": False, "message": "Block not found"}, 404
+
+        if source_floor_index < 0 or source_floor_index >= len(block["floors"]):
+            return {"success": False, "message": "Invalid source floor index"}, 400
+
+        source_floor = block["floors"][source_floor_index]
+
+        for target_index in target_floor_indices:
+            if target_index < 0 or target_index >= len(block["floors"]):
+                return {
+                    "success": False,
+                    "message": f"Invalid target floor index: {target_index + 1}",
+                }, 400
+
+            block["floors"][target_index] = source_floor.copy()
+
+        result = db.blocks.update_one(
+            {"_id": ObjectId(block_id)}, {"$set": {"floors": block["floors"]}}
+        )
+
+        if result.modified_count == 0:
+            return {"success": False, "message": "No changes made"}, 400
+
+        return {"success": True, "message": "Floor layout copied successfully"}
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error copying floor layout: {str(e)}",
+        }, 500
+
+
+@admin_bp.route("/get_rooms/<block_id>/<int:floor_index>", methods=["GET"])
+@login_required
+def get_rooms(block_id, floor_index):
+    if session["user"]["role"] != "admin":
+        return {"success": False, "message": "Unauthorized"}, 403
+
+    block = db.blocks.find_one({"_id": ObjectId(block_id)})
+from flask import (
+    Blueprint,
+    redirect,
+    render_template,
+    request,
+    jsonify,
+    session,
+    url_for,
+)
+from werkzeug.security import generate_password_hash
+from config import users, db  # Import the db object from your config file
+from utils import login_required
+import pandas as pd
+import io
+from bson import ObjectId, errors as bson_errors  # Import ObjectId for MongoDB
+import traceback
+from bson import ObjectId
 from datetime import datetime
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -1435,3 +1860,64 @@ def process_inventory_request():
         return jsonify({"success": False, "message": "Request not found or no changes made"}), 404
 
 
+@admin_bp.route("/get_staff_list", methods=["GET"])
+@login_required
+def get_staff_list():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    staff_list = list(users.find({"role": "staff"}, {"_id": 1, "username": 1, "full_name": 1}))
+    for staff in staff_list:
+        staff["_id"] = str(staff["_id"])
+
+    return jsonify({"success": True, "staff": staff_list})
+
+@admin_bp.route("/assign_schedule", methods=["POST"])
+@login_required
+def assign_schedule():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    staff_id = data.get("staffId")
+    start_date = datetime.strptime(data.get("startDate"), "%Y-%m-%d")
+    end_date = datetime.strptime(data.get("endDate"), "%Y-%m-%d")
+    shift_start = data.get("shiftStart")
+    shift_end = data.get("shiftEnd")
+
+    if not all([staff_id, start_date, end_date, shift_start, shift_end]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    schedule = {
+        "staff_id": staff_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "shift_start": shift_start,
+        "shift_end": shift_end
+    }
+
+    result = db.schedules.insert_one(schedule)
+
+    if result.inserted_id:
+        return jsonify({"success": True, "message": "Schedule assigned successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to assign schedule"}), 500
+
+@admin_bp.route("/get_schedules", methods=["GET"])
+@login_required
+def get_schedules():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    schedules = list(db.schedules.find())
+    for schedule in schedules:
+        schedule["_id"] = str(schedule["_id"])
+        schedule["start_date"] = schedule["start_date"].strftime("%Y-%m-%d")
+        schedule["end_date"] = schedule["end_date"].strftime("%Y-%m-%d")
+        staff = users.find_one({"_id": ObjectId(schedule["staff_id"])})
+        if staff:
+            schedule["staff_name"] = staff["full_name"]
+        else:
+            schedule["staff_name"] = "Unknown"
+
+    return jsonify({"success": True, "schedules": schedules})

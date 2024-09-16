@@ -111,3 +111,18 @@ def staff_get_inventory_requests():
         request['timestamp'] = request['timestamp'].isoformat()
 
     return jsonify({"success": True, "requests": requests})
+
+@staff_bp.route("/staff/get_staff_schedule", methods=["GET"])
+@login_required
+def get_staff_schedule():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    staff_id = str(session["user"]["_id"])
+    schedules = list(db.schedules.find({"staff_id": staff_id}))
+    for schedule in schedules:
+        schedule["_id"] = str(schedule["_id"])
+        schedule["start_date"] = schedule["start_date"].strftime("%Y-%m-%d")
+        schedule["end_date"] = schedule["end_date"].strftime("%Y-%m-%d")
+
+    return jsonify({"success": True, "schedules": schedules})

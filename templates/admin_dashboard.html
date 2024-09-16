@@ -72,6 +72,18 @@
                     </a>
                 </li>
                 <li>
+                    <a href="#schedules" class="nav-link text-white" data-bs-toggle="pill">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        Schedules
+                    </a>
+                </li>
+                <li>
+                    <a href="#outing-request" class="nav-link text-white" data-bs-toggle="pill">
+                        <i class="bi bi-door-open me-2"></i>
+                        Outing Request
+                    </a>
+                </li>
+                <li>
                     <a href="#room-management" class="nav-link text-white" data-bs-toggle="pill">
                         <i class="bi bi-house-door me-2"></i>
                         Room Management
@@ -148,6 +160,8 @@
                 {% include 'admin/user_management.html' %}
                 {% include 'admin/room_management.html' %}
                 {% include 'admin/fee_management.html' %}
+                {% include 'admin/schedules.html' %}
+                {% include 'student/outing_request.html' %}
                 {% include 'admin/attendance.html' %}
                 {% include 'admin/complaints.html' %}
                 {% include 'admin/inventory.html' %}

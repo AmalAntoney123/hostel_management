@@ -1,4 +1,39 @@
 <div class="tab-pane fade" id="schedules" role="tabpanel">
-    <h2>Schedules</h2>
-    <!-- Add schedules content here -->
+    <h2>My Schedules</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Shift Start</th>
+                <th>Shift End</th>
+            </tr>
+        </thead>
+        <tbody id="staffScheduleTableBody">
+        </tbody>
+    </table>
 </div>
+
+<script>
+$(document).ready(function() {
+    function loadStaffSchedules() {
+        $.get("/staff/get_staff_schedule", function(data) {
+            if (data.success) {
+                $("#staffScheduleTableBody").empty();
+                data.schedules.forEach(function(schedule) {
+                    $("#staffScheduleTableBody").append(`
+                        <tr>
+                            <td>${schedule.start_date}</td>
+                            <td>${schedule.end_date}</td>
+                            <td>${schedule.shift_start}</td>
+                            <td>${schedule.shift_end}</td>
+                        </tr>
+                    `);
+                });
+            }
+        });
+    }
+
+    loadStaffSchedules();
+});
+</script>
