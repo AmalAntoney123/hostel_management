@@ -194,3 +194,63 @@ def get_room_change_status():
         return jsonify({"success": True, "request": request})
     else:
         return jsonify({"success": True, "request": None})
+    
+@student_bp.route("/student/submit_gatepass", methods=["POST"])
+@login_required
+def submit_gatepass():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        reason = data.get('reason')
+        departure_time = data.get('departureTime')
+        return_time = data.get('returnTime')
+
+        missing_fields = []
+        if not reason:
+            missing_fields.append("reason")
+        if not departure_time:
+            missing_fields.append("departureTime")
+        if not return_time:
+            missing_fields.append("returnTime")
+
+        if missing_fields:
+            return jsonify({"success": False, "message": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+        gatepass = {
+            "student_id": session["user"]["_id"],
+            "student_name": session["user"]["username"],
+            "reason": reason,
+            "departure_time": datetime.fromisoformat(departure_time),
+            "return_time": datetime.fromisoformat(return_time),
+            "status": "pending",
+            "submitted_at": datetime.utcnow()
+        }
+
+        result = db.gatepasses.insert_one(gatepass)
+
+        if result.inserted_id:
+            return jsonify({"success": True, "message": "Gatepass submitted successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to submit gatepass"}), 500
+
+    except Exception as e:
+        print(f"Error submitting gatepass: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred while submitting the gatepass: {str(e)}"}), 500
+
+
+@student_bp.route("/student/get_student_gatepasses", methods=["GET"])
+@login_required
+def get_student_gatepasses():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    gatepasses = list(db.gatepasses.find({"student_id": session["user"]["_id"]}))
+    for gatepass in gatepasses:
+        gatepass['_id'] = str(gatepass['_id'])
+        gatepass['departure_time'] = gatepass['departure_time'].isoformat()
+        gatepass['return_time'] = gatepass['return_time'].isoformat()
+        gatepass['submitted_at'] = gatepass['submitted_at'].isoformat()
+
+    return jsonify({"success": True, "gatepasses": gatepasses})

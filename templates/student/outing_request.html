@@ -1,4 +1,103 @@
 <div class="tab-pane fade" id="outing-request" role="tabpanel">
-    <h2>Outing Request</h2>
-    <!-- Add outing request form and status content here -->
+    <h2>Gatepass Request</h2>
+    <form id="gatepass-form">
+        <div class="mb-3">
+            <label for="reason" class="form-label">Reason for Outing</label>
+            <input type="text" class="form-control" id="reason-text" required>
+        </div>
+        <div class="mb-3">
+            <label for="departure-time" class="form-label">Departure Time</label>
+            <input type="datetime-local" class="form-control" id="departure-time" required>
+        </div>
+        <div class="mb-3">
+            <label for="return-time" class="form-label">Expected Return Time</label>
+            <input type="datetime-local" class="form-control" id="return-time" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Gatepass Request</button>
+    </form>
+    <hr>
+    <h3>My Gatepass Requests</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Reason</th>
+                <th>Departure Time</th>
+                <th>Return Time</th>
+                <th>Status</th>
+                <th>Admin Comment</th>
+            </tr>
+        </thead>
+        <tbody id="gatepass-list">
+            <!-- Gatepass requests will be populated here -->
+        </tbody>
+    </table>
 </div>
+<script>
+
+// Student-side gatepass functionality
+$(document).ready(function() {
+    // Submit gatepass request
+    $('#gatepass-form').submit(function(e) {
+        e.preventDefault();
+        
+        var reason = $('#reason-text').val().trim();
+        var departureTime = $('#departure-time').val();
+        var returnTime = $('#return-time').val();
+        
+        // Check if fields are empty
+        if (!reason || !departureTime || !returnTime) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        $.ajax({
+            url: '/student/submit_gatepass',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                reason: reason,
+                departureTime: departureTime,
+                returnTime: returnTime
+            }),
+            success: function(response) {
+                alert(response.message);
+                loadStudentGatepasses();
+                // Clear the form after successful submission
+                $('#gatepass-form')[0].reset();
+            },
+            error: function(xhr) {
+                alert('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error occurred'));
+            }
+        });
+    });
+
+    // Load student's gatepasses
+    function loadStudentGatepasses() {
+        $.ajax({
+            url: '/student/get_student_gatepasses',
+            method: 'GET',
+            success: function(response) {
+                var gatepassList = $('#gatepass-list');
+                gatepassList.empty();
+                response.gatepasses.forEach(function(gatepass) {
+                    gatepassList.append(`
+                        <tr>
+                            <td>${gatepass.reason}</td>
+                            <td>${new Date(gatepass.departure_time).toLocaleString()}</td>
+                            <td>${new Date(gatepass.return_time).toLocaleString()}</td>
+                            <td>${gatepass.status}</td>
+                            <td>${gatepass.admin_comment || ''}</td>
+                        </tr>
+                    `);
+                });
+            },
+            error: function(xhr) {
+                alert('Error loading gatepasses: ' + xhr.responseJSON.message);
+            }
+        });
+    }
+
+    // Load gatepasses on page load
+    loadStudentGatepasses();
+});
+</script>

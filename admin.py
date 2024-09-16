@@ -1921,3 +1921,54 @@ def get_schedules():
             schedule["staff_name"] = "Unknown"
 
     return jsonify({"success": True, "schedules": schedules})
+
+
+
+@admin_bp.route("/get_pending_gatepasses", methods=["GET"])
+@login_required
+def get_pending_gatepasses():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    pending_gatepasses = list(db.gatepasses.find({"status": "pending"}))
+    for gatepass in pending_gatepasses:
+        gatepass['_id'] = str(gatepass['_id'])
+        gatepass['departure_time'] = gatepass['departure_time'].isoformat()
+        gatepass['return_time'] = gatepass['return_time'].isoformat()
+        gatepass['submitted_at'] = gatepass['submitted_at'].isoformat()
+
+    return jsonify({"success": True, "gatepasses": pending_gatepasses})
+
+@admin_bp.route("/process_gatepass", methods=["POST"])
+@login_required
+def process_gatepass():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    gatepass_id = data.get("gatepassId")
+    action = data.get("action")
+    admin_comment = data.get("adminComment")
+
+    if not all([gatepass_id, action]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    if action not in ["approve", "reject"]:
+        return jsonify({"success": False, "message": "Invalid action"}), 400
+
+    result = db.gatepasses.update_one(
+        {"_id": ObjectId(gatepass_id)},
+        {
+            "$set": {
+                "status": action,
+                "admin_comment": admin_comment,
+                "processed_at": datetime.utcnow(),
+                "processed_by": session["user"]["username"]
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        return jsonify({"success": True, "message": f"Gatepass {action}ed successfully"})
+    else:
+        return jsonify({"success": False, "message": "Gatepass not found or no changes made"}), 404

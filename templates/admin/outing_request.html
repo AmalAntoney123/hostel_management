@@ -1,4 +1,81 @@
 <div class="tab-pane fade" id="outing-request" role="tabpanel">
-    <h2>Outing Request</h2>
-    <!-- Add outing request form and status content here -->
+    <h2>Gatepass Requests</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Reason</th>
+                <th>Departure Time</th>
+                <th>Return Time</th>
+                <th>Submitted At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="gatepass-requests-list">
+            <!-- Gatepass requests will be populated here -->
+        </tbody>
+    </table>
 </div>
+<script>
+
+// Admin-side gatepass functionality
+$(document).ready(function() {
+    // Load pending gatepass requests
+    function loadPendingGatepasses() {
+        $.ajax({
+            url: '/admin/get_pending_gatepasses',
+            method: 'GET',
+            success: function(response) {
+                var gatepassList = $('#gatepass-requests-list');
+                gatepassList.empty();
+                response.gatepasses.forEach(function(gatepass) {
+                    gatepassList.append(`
+                        <tr>
+                            <td>${gatepass.student_name}</td>
+                            <td>${gatepass.reason}</td>
+                            <td>${new Date(gatepass.departure_time).toLocaleString()}</td>
+                            <td>${new Date(gatepass.return_time).toLocaleString()}</td>
+                            <td>${new Date(gatepass.submitted_at).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm approve-gatepass" data-id="${gatepass._id}">Approve</button>
+                                <button class="btn btn-danger btn-sm reject-gatepass" data-id="${gatepass._id}">Reject</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            },
+            error: function(xhr) {
+                alert('Error loading gatepass requests: ' + xhr.responseJSON.message);
+            }
+        });
+    }
+
+    // Process gatepass request
+    $(document).on('click', '.approve-gatepass, .reject-gatepass', function() {
+        var action = $(this).hasClass('approve-gatepass') ? 'approve' : 'reject';
+        var gatepassId = $(this).data('id');
+        var adminComment = prompt("Enter a comment (optional):");
+
+        $.ajax({
+            url: '/admin/process_gatepass',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                gatepassId: gatepassId,
+                action: action,
+                adminComment: adminComment
+            }),
+            success: function(response) {
+                alert(response.message);
+                loadPendingGatepasses();
+            },
+            error: function(xhr) {
+                alert('Error: ' + xhr.responseJSON.message);
+            }
+        });
+    });
+
+    // Load gatepass requests on page load
+    loadPendingGatepasses();
+});
+</script>
