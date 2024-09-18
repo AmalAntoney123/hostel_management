@@ -1,0 +1,101 @@
+<div class="tab-pane fade" id="fee-management" role="tabpanel">
+    <h2>Fee Management</h2>
+    <div id="current-fee-settings" class="mb-4">
+        <h3>Current Fee Settings</h3>
+        <p>Monthly Mess Fee Due Day: <span id="current-mess-fee-due-day"></span></p>
+        <p>Monthly Mess Fee: Rs.<span id="current-mess-fee"></span></p>
+        <p>Mess Fee Late Fee (per day): Rs.<span id="current-mess-fee-late-fee"></span></p>
+        <p>Hostel Rent Due Date: <span id="current-rent-due-date"></span></p>
+        <p>Yearly Hostel Rent: Rs.<span id="current-rent-fee"></span></p>
+        <p>Hostel Rent Late Fee (per day): Rs.<span id="current-rent-fee-late-fee"></span></p>
+    </div>
+    <h3>Update Fee Settings</h3>
+    <form id="fee-settings-form">
+        <div class="mb-3">
+            <label for="mess-fee-due-day" class="form-label">Monthly Mess Fee Due Day</label>
+            <input type="number" class="form-control" id="mess-fee-due-day" min="1" max="31" required>
+        </div>
+        <div class="mb-3">
+            <label for="mess-fee" class="form-label">Monthly Mess Fee</label>
+            <input type="number" class="form-control" id="mess-fee" min="0" step="0.01" required>
+        </div>
+        <div class="mb-3">
+            <label for="mess-fee-late-fee" class="form-label">Mess Fee Late Fee (per day)</label>
+            <input type="number" class="form-control" id="mess-fee-late-fee" min="0" step="0.01" required>
+        </div>
+        <div class="mb-3">
+            <label for="rent-due-date" class="form-label">Yearly Hostel Rent Due Date</label>
+            <input type="date" class="form-control" id="rent-due-date" required>
+        </div>
+        <div class="mb-3">
+            <label for="rent-fee" class="form-label">Yearly Hostel Rent</label>
+            <input type="number" class="form-control" id="rent-fee" min="0" step="0.01" required>
+        </div>
+        <div class="mb-3">
+            <label for="rent-fee-late-fee" class="form-label">Hostel Rent Late Fee (per day)</label>
+            <input type="number" class="form-control" id="rent-fee-late-fee" min="0" step="0.01" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Fee Settings</button>
+    </form>
+</div>
+<script>
+    $(document).ready(function () {
+        function loadCurrentFeeSettings() {
+            $.ajax({
+                url: '/admin/get_fee_settings',
+                method: 'GET',
+                success: function (response) {
+                    if (response.success) {
+                        $('#current-mess-fee-due-day').text(response.settings.messFeeDay);
+                        $('#current-mess-fee').text(response.settings.messFee.toFixed(2));
+                        $('#current-mess-fee-late-fee').text(response.settings.messFeeLateFee.toFixed(2));
+                        $('#current-rent-due-date').text(new Date(response.settings.rentDueDate).toLocaleDateString());
+                        $('#current-rent-fee').text(response.settings.rentFee.toFixed(2));
+                        $('#current-rent-fee-late-fee').text(response.settings.rentFeeLateFee.toFixed(2));
+
+                        // Populate the form with current values
+                        $('#mess-fee-due-day').val(response.settings.messFeeDay);
+                        $('#mess-fee').val(response.settings.messFee.toFixed(2));
+                        $('#mess-fee-late-fee').val(response.settings.messFeeLateFee.toFixed(2));
+                        $('#rent-due-date').val(response.settings.rentDueDate.split('T')[0]);
+                        $('#rent-fee').val(response.settings.rentFee.toFixed(2));
+                        $('#rent-fee-late-fee').val(response.settings.rentFeeLateFee.toFixed(2));
+                    }
+                },
+                error: function (xhr) {
+                    alert('Error loading fee settings: ' + xhr.responseJSON.message);
+                }
+            });
+        }
+
+        $('#fee-settings-form').submit(function (e) {
+            e.preventDefault();
+            $.ajax({
+                url: '/admin/update_fee_settings',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    messFeeDay: parseInt($('#mess-fee-due-day').val()),
+                    messFee: parseFloat($('#mess-fee').val()),
+                    messFeeLateFee: parseFloat($('#mess-fee-late-fee').val()),
+                    rentDueDate: $('#rent-due-date').val(),
+                    rentFee: parseFloat($('#rent-fee').val()),
+                    rentFeeLateFee: parseFloat($('#rent-fee-late-fee').val())
+                }),
+                success: function (response) {
+                    if (response.success) {
+                        alert('Fee settings updated successfully');
+                        loadCurrentFeeSettings();
+                    } else {
+                        alert('Failed to update fee settings: ' + response.message);
+                    }
+                },
+                error: function (xhr) {
+                    alert('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error occurred'));
+                }
+            });
+        });
+
+        loadCurrentFeeSettings();
+    });
+</script>

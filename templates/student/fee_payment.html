@@ -1,4 +1,90 @@
 <div class="tab-pane fade" id="fee-payment" role="tabpanel">
     <h2>Fee Payment</h2>
-    <!-- Add fee payment content here -->
+    <div id="fee-info">
+        <p>Monthly Mess Fee Due Day: <span id="mess-fee-due-day"></span></p>
+        <p>Monthly Mess Fee: Rs.<span id="mess-fee"></span></p>
+        <p>Yearly Hostel Rent Due Date: <span id="rent-due-date"></span></p>
+        <p>Yearly Hostel Rent: Rs.<span id="rent-fee"></span></p>
+    </div>
+    <h3>Upcoming Payments</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Due Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="upcoming-payments">
+            <!-- Upcoming payments will be populated here -->
+        </tbody>
+    </table>
 </div>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+$(document).ready(function () {
+    function loadFeeInfo() {
+        $.ajax({
+            url: '/student/get_fee_info',
+            method: 'GET',
+            success: function (response) {
+                if (response.success) {
+                    $('#mess-fee-due-day').text(response.feeInfo.messFeeDay);
+                    $('#mess-fee').text(response.feeInfo.messFee.toFixed(2));
+                    $('#rent-due-date').text(response.feeInfo.rentDueDate);
+                    $('#rent-fee').text(response.feeInfo.rentFee.toFixed(2));
+
+                    const upcomingPayments = $('#upcoming-payments');
+                    upcomingPayments.empty();
+                    response.feeInfo.upcomingPayments.forEach(function (payment) {
+                        const payNowButton = payment.status === 'Pending' 
+                            ? `<button class="btn btn-primary btn-sm pay-now" data-amount="${payment.amount + payment.lateAmount}" data-description="${payment.description}">Pay Now</button>`
+                            : '';
+                        upcomingPayments.append(`
+                        <tr>
+                            <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
+                            <td>${payment.description}</td>
+                            <td>Rs.${payment.amount.toFixed(2)}${payment.lateAmount > 0 ? ' + Rs.' + payment.lateAmount.toFixed(2) + ' (Late Fee)' : ''}</td>
+                            <td>${payment.status}</td>
+                            <td>${payNowButton}</td>
+                        </tr>
+                    `);
+                    });
+                }
+            },
+            error: function (xhr) {
+                alert('Error loading fee information: ' + xhr.responseJSON.message);
+            }
+        });
+    }
+
+    loadFeeInfo();
+
+    $(document).on('click', '.pay-now', function() {
+        const amount = $(this).data('amount');
+        const description = $(this).data('description');
+        initiatePayment(amount, description);
+    });
+
+    function initiatePayment(amount, description) {
+        $.ajax({
+            url: '/create_payment_session',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ amount: amount, description: description }),
+            success: function (response) {
+                if (response.success) {
+                    window.location.href = response.url;
+                } else {
+                    alert('Error creating payment session: ' + response.message);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert('Error creating payment session: ' + error);
+            }
+        });
+    }
+});
+</script>

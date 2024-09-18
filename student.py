@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 from utils import login_required
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import db
 from bson import ObjectId
 import traceback
+import calendar
+from dateutil.relativedelta import relativedelta
 
 student_bp = Blueprint('student', __name__)
 
@@ -254,3 +256,110 @@ def get_student_gatepasses():
         gatepass['submitted_at'] = gatepass['submitted_at'].isoformat()
 
     return jsonify({"success": True, "gatepasses": gatepasses})
+
+
+@student_bp.route("/student/get_fee_info", methods=["GET"])
+@login_required
+def get_fee_info():
+    try:
+        if session["user"]["role"] != "student":
+            return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+        fee_settings = db.fee_settings.find_one()
+        if not fee_settings:
+            return jsonify({"success": False, "message": "Fee settings not found"}), 404
+
+        student_id = session["user"]["_id"]
+        current_date = datetime.utcnow()
+        upcoming_payments = []
+
+        # Calculate current month's mess fee
+        current_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], 0)
+        current_mess_fee_amount = fee_settings["messFee"]
+        current_mess_fee_late_amount = calculate_late_fee(current_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
+        
+        current_month_name = current_mess_fee_due_date.strftime("%B %Y")
+        current_description = f"Mess Fee {current_month_name}"
+        
+        if not is_payment_made(student_id, current_description, current_mess_fee_due_date):
+            upcoming_payments.append({
+                "dueDate": current_mess_fee_due_date,
+                "description": current_description,
+                "amount": current_mess_fee_amount,
+                "lateAmount": current_mess_fee_late_amount,
+                "status": "Overdue" if current_date > current_mess_fee_due_date else "Pending"
+            })
+
+        # Check for unpaid mess fees from previous months
+        for i in range(1, 12):  # Check up to 11 months back
+            prev_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], -i)
+            prev_month_name = prev_mess_fee_due_date.strftime("%B %Y")
+            prev_description = f"Mess Fee {prev_month_name}"
+            
+            if not is_payment_made(student_id, prev_description, prev_mess_fee_due_date):
+                prev_mess_fee_late_amount = calculate_late_fee(prev_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
+                upcoming_payments.append({
+                    "dueDate": prev_mess_fee_due_date,
+                    "description": prev_description,
+                    "amount": fee_settings["messFee"],
+                    "lateAmount": prev_mess_fee_late_amount,
+                    "status": "Overdue"
+                })
+            else:
+                break  # Stop checking if a payment is found
+
+        # Calculate hostel rent
+        rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year)
+        if rent_due_date < current_date:
+            rent_due_date = rent_due_date.replace(year=current_date.year + 1)
+        
+        rent_fee_amount = fee_settings["rentFee"]
+        rent_fee_late_amount = calculate_late_fee(rent_due_date, current_date, fee_settings["rentFeeLateFee"])
+        
+        description = f"Hostel Rent {rent_due_date.year}"
+        
+        if not is_payment_made(student_id, description, rent_due_date):
+            upcoming_payments.append({
+                "dueDate": rent_due_date,
+                "description": description,
+                "amount": rent_fee_amount,
+                "lateAmount": rent_fee_late_amount,
+                "status": "Overdue" if current_date > rent_due_date else "Pending"
+            })
+
+        fee_info = {
+            "messFeeDay": fee_settings["messFeeDay"],
+            "messFee": fee_settings["messFee"],
+            "rentDueDate": fee_settings["rentDueDate"].strftime("%B %d"),
+            "rentFee": fee_settings["rentFee"],
+            "upcomingPayments": upcoming_payments
+        }
+
+        return jsonify({"success": True, "feeInfo": fee_info})
+    except Exception as e:
+        print(f"Error in get_fee_info: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
+    # Start with the current month
+    next_date = current_date.replace(day=1) + relativedelta(months=months_ahead)
+    
+    # Set the day to the due day
+    next_date = next_date.replace(day=min(due_day, calendar.monthrange(next_date.year, next_date.month)[1]))
+    
+    return next_date
+
+def calculate_late_fee(due_date, current_date, daily_late_fee):
+    if current_date <= due_date:
+        return 0
+    days_late = (current_date - due_date).days
+    return min(days_late * daily_late_fee, 500)  # Cap the late fee at 500 Rs
+
+def is_payment_made(student_id, description, due_date):
+    payment = db.payments.find_one({
+        "student_id": student_id,
+        "description": description,
+        "payment_date": {"$gte": due_date - timedelta(days=30), "$lte": datetime.utcnow()}
+    })
+    return payment is not None

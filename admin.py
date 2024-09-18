@@ -1972,3 +1972,38 @@ def process_gatepass():
         return jsonify({"success": True, "message": f"Gatepass {action}ed successfully"})
     else:
         return jsonify({"success": False, "message": "Gatepass not found or no changes made"}), 404
+    
+
+@admin_bp.route("/update_fee_settings", methods=["POST"])
+@login_required
+def update_fee_settings():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    settings = {
+        "messFeeDay": int(data["messFeeDay"]),
+        "messFee": float(data["messFee"]),
+        "messFeeLateFee": float(data["messFeeLateFee"]),
+        "rentDueDate": datetime.strptime(data["rentDueDate"], "%Y-%m-%d"),
+        "rentFee": float(data["rentFee"]),
+        "rentFeeLateFee": float(data["rentFeeLateFee"])
+    }
+
+    db.fee_settings.update_one({}, {"$set": settings}, upsert=True)
+    return jsonify({"success": True, "message": "Fee settings updated successfully"})
+
+
+@admin_bp.route("/get_fee_settings", methods=["GET"])
+@login_required
+def get_fee_settings():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    settings = db.fee_settings.find_one()
+    if settings:
+        settings.pop("_id", None)
+        settings["rentDueDate"] = settings["rentDueDate"].isoformat()
+        return jsonify({"success": True, "settings": settings})
+    else:
+        return jsonify({"success": False, "message": "Fee settings not found"})
