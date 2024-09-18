@@ -73,7 +73,8 @@ def create_checkout_session():
             mode='payment',
             success_url=url_for('payment.payment_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('payment.payment_cancel', _external=True),
-            client_reference_id=session['user']['_id']
+            client_reference_id=session['user']['_id'],
+            metadata={'description': description}  
         )
         return jsonify({"success": True, "checkoutUrl": checkout_session.url})
     except Exception as e:
@@ -97,26 +98,27 @@ def payment_cancel():
 def update_payment_status(checkout_session):
     student_id = checkout_session.client_reference_id
     amount = checkout_session.amount_total / 100  # Convert cents to dollars
-    description = checkout_session.metadata.get('description')
+    description = checkout_session.metadata.get('description', '').strip()  # Ensure description is retrieved
 
     payment = {
         'student_id': student_id,
         'amount': amount,
-        'description': description,
+        'description': description,  # Ensure description is included
         'payment_date': datetime.utcnow(),
         'stripe_session_id': checkout_session.id
     }
 
     db.payments.insert_one(payment)
 
-    # Update student_fees collection
-    if 'Mess Fee' in description:
-        db.student_fees.update_one(
-            {'student_id': student_id},
-            {'$set': {'last_mess_fee_payment': datetime.utcnow()}}
-        )
-    elif 'Hostel Rent' in description:
-        db.student_fees.update_one(
-            {'student_id': student_id},
-            {'$set': {'last_rent_payment': datetime.utcnow()}}
-        )
+    # Update student_fees collection only if description is valid
+    if description:  # Check if description is not empty
+        if 'Mess Fee' in description:
+            db.student_fees.update_one(
+                {'student_id': student_id},
+                {'$set': {'last_mess_fee_payment': datetime.utcnow()}}
+            )
+        elif 'Hostel Rent' in description:
+            db.student_fees.update_one(
+                {'student_id': student_id},
+                {'$set': {'last_rent_payment': datetime.utcnow()}}
+            )

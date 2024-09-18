@@ -371,15 +371,10 @@ def get_fee_info():
         if not join_date:
             return jsonify({"success": False, "message": "Student join date not found"}), 404
 
-        # Parse the join_date string to a timezone-aware datetime object
         join_date = parse(join_date)
-
-        # Make current_date timezone-aware (UTC)
         current_date = datetime.now(tzutc())
-
         upcoming_payments = []
 
-        # Only calculate fees if the join date is in the past
         if join_date <= current_date:
             # Calculate current month's mess fee
             current_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], 0)
@@ -398,11 +393,11 @@ def get_fee_info():
                     "status": "Overdue" if current_date > current_mess_fee_due_date else "Pending"
                 })
 
-            # Check for unpaid mess fees from previous months, starting from join date
-            for i in range(1, 12):  # Check up to 11 months back
+            # Check for unpaid mess fees from previous months
+            for i in range(1, 12):
                 prev_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], -i)
                 if prev_mess_fee_due_date < join_date:
-                    break  # Stop checking if we've gone before the join date
+                    break
                 
                 prev_month_name = prev_mess_fee_due_date.strftime("%B %Y")
                 prev_description = f"Mess Fee {prev_month_name}"
@@ -417,14 +412,13 @@ def get_fee_info():
                         "status": "Overdue"
                     })
                 else:
-                    break  # Stop checking if a payment is found
+                    break
 
             # Calculate hostel rent
             rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year, tzinfo=tzutc())
             if rent_due_date < current_date:
                 rent_due_date = rent_due_date.replace(year=current_date.year + 1)
             
-            # Only include rent if the join date is before the rent due date
             if join_date <= rent_due_date:
                 rent_fee_amount = fee_settings["rentFee"]
                 rent_fee_late_amount = calculate_late_fee(rent_due_date, current_date, fee_settings["rentFeeLateFee"])
@@ -452,8 +446,8 @@ def get_fee_info():
         return jsonify({"success": True, "feeInfo": fee_info})
     except Exception as e:
         print(f"Error in get_fee_info: {str(e)}")
-        print(traceback.format_exc())
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
 
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
     # Start with the current month
