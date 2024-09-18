@@ -39,23 +39,26 @@ $(document).ready(function () {
                     const upcomingPayments = $('#upcoming-payments');
                     upcomingPayments.empty();
                     response.feeInfo.upcomingPayments.forEach(function (payment) {
-                        const payNowButton = payment.status === 'Pending' 
-                            ? `<button class="btn btn-primary btn-sm pay-now" data-amount="${payment.amount + payment.lateAmount}" data-description="${payment.description}">Pay Now</button>`
-                            : '';
+                        const totalAmount = payment.amount + payment.lateAmount;
+                        const payNowButton = `<button class="btn btn-primary btn-sm pay-now" data-amount="${totalAmount}" data-description="${payment.description}">Pay Now</button>`;
                         upcomingPayments.append(`
                         <tr>
                             <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
                             <td>${payment.description}</td>
-                            <td>Rs.${payment.amount.toFixed(2)}${payment.lateAmount > 0 ? ' + Rs.' + payment.lateAmount.toFixed(2) + ' (Late Fee)' : ''}</td>
+                            <td>₹${payment.amount.toFixed(2)}</td>
+                            <td>₹${payment.lateAmount.toFixed(2)}</td>
+                            <td>₹${totalAmount.toFixed(2)}</td>
                             <td>${payment.status}</td>
                             <td>${payNowButton}</td>
                         </tr>
                     `);
                     });
+                } else {
+                    alert('Failed to load fee information: ' + response.message);
                 }
             },
-            error: function (xhr) {
-                alert('Error loading fee information: ' + xhr.responseJSON.message);
+            error: function () {
+                alert('An error occurred while loading fee information.');
             }
         });
     }
@@ -65,26 +68,26 @@ $(document).ready(function () {
     $(document).on('click', '.pay-now', function() {
         const amount = $(this).data('amount');
         const description = $(this).data('description');
-        initiatePayment(amount, description);
-    });
-
-    function initiatePayment(amount, description) {
+        
         $.ajax({
-            url: '/create_payment_session',
+            url: '/create-checkout-session',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ amount: amount, description: description }),
-            success: function (response) {
+            data: JSON.stringify({
+                amount: amount,
+                description: description
+            }),
+            success: function(response) {
                 if (response.success) {
-                    window.location.href = response.url;
+                    window.location.href = response.checkoutUrl;
                 } else {
-                    alert('Error creating payment session: ' + response.message);
+                    alert('Failed to create checkout session: ' + response.message);
                 }
             },
-            error: function (xhr, status, error) {
-                alert('Error creating payment session: ' + error);
+            error: function() {
+                alert('An error occurred while creating the checkout session.');
             }
         });
-    }
+    });
 });
 </script>

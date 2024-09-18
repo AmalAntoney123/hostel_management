@@ -61,22 +61,8 @@ def payment_cancel():
 
 def update_payment_status(checkout_session):
     student_id = checkout_session.client_reference_id
-    amount = checkout_session.amount_total / 100
-
-    # Retrieve the session with line items expanded
-    session_with_line_items = stripe.checkout.Session.retrieve(
-        checkout_session.id,
-        expand=['line_items']
-    )
-
-    # Get the description from the expanded line items
-    description = ''
-    if session_with_line_items.line_items and session_with_line_items.line_items.data:
-        description = session_with_line_items.line_items.data[0].description
-
-    if not student_id:
-        print(f"Error: No student_id found for session {checkout_session.id}")
-        return
+    amount = checkout_session.amount_total / 100  # Convert cents to dollars
+    description = checkout_session.metadata.get('description')
 
     payment = {
         'student_id': student_id,
@@ -89,17 +75,13 @@ def update_payment_status(checkout_session):
     db.payments.insert_one(payment)
 
     # Update student_fees collection
-    update_data = {}
     if 'Mess Fee' in description:
-        update_data['last_mess_fee_payment'] = datetime.utcnow()
-    elif 'Hostel Rent' in description:
-        update_data['last_rent_payment'] = datetime.utcnow()
-
-    if update_data:
         db.student_fees.update_one(
             {'student_id': student_id},
-            {'$set': update_data},
-            upsert=True
+            {'$set': {'last_mess_fee_payment': datetime.utcnow()}}
         )
-
-    print(f"Payment updated for student {student_id}: {description}")
+    elif 'Hostel Rent' in description:
+        db.student_fees.update_one(
+            {'student_id': student_id},
+            {'$set': {'last_rent_payment': datetime.utcnow()}}
+        )
