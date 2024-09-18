@@ -1,6 +1,7 @@
 <div class="tab-pane fade" id="fee-payment" role="tabpanel">
     <h2>Fee Payment</h2>
     <div id="fee-info">
+        <p>Join Date: <span id="join-date"></span></p>
         <p>Monthly Mess Fee Due Day: <span id="mess-fee-due-day"></span></p>
         <p>Monthly Mess Fee: Rs.<span id="mess-fee"></span></p>
         <p>Yearly Hostel Rent Due Date: <span id="rent-due-date"></span></p>
@@ -31,6 +32,7 @@ $(document).ready(function () {
             method: 'GET',
             success: function (response) {
                 if (response.success) {
+                    $('#join-date').text(response.feeInfo.joinDate);
                     $('#mess-fee-due-day').text(response.feeInfo.messFeeDay);
                     $('#mess-fee').text(response.feeInfo.messFee.toFixed(2));
                     $('#rent-due-date').text(response.feeInfo.rentDueDate);

@@ -61,7 +61,8 @@ def add_user():
         "phone": phone,
         "role": role,
         "password": hashed_password,
-        "is_active": True,  
+        "is_active": True,
+        "join_date": datetime.utcnow(),  # Automatically set join date to current date and time
     }
 
     users.insert_one(new_user)
@@ -153,7 +154,8 @@ def bulk_upload_users():
                 "phone": phone,
                 "role": user_type,
                 "password": hashed_password,
-                "is_active": True,  # Add this line
+                "is_active": True,
+                "join_date": datetime.utcnow(),
             }
 
             users.insert_one(new_user)
@@ -963,6 +965,7 @@ def get_pending_inventory_requests():
 
     return jsonify({"success": True, "requests": pending_requests})
 
+
 @admin_bp.route("/get_all_inventory_requests", methods=["GET"])
 @login_required
 def get_all_inventory_requests():
@@ -975,6 +978,7 @@ def get_all_inventory_requests():
         request["timestamp"] = request["timestamp"].isoformat()
 
     return jsonify({"success": True, "requests": all_requests})
+
 
 @admin_bp.route("/process_inventory_request", methods=["POST"])
 @login_required
@@ -1007,7 +1011,12 @@ def process_inventory_request():
     if result.modified_count > 0:
         return jsonify({"success": True, "message": f"Request {action}ed successfully"})
     else:
-        return jsonify({"success": False, "message": "Request not found or no changes made"}), 404
+        return (
+            jsonify(
+                {"success": False, "message": "Request not found or no changes made"}
+            ),
+            404,
+        )
 
 
 @admin_bp.route("/get_staff_list", methods=["GET"])
@@ -1016,11 +1025,14 @@ def get_staff_list():
     if session["user"]["role"] != "admin":
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    staff_list = list(users.find({"role": "staff"}, {"_id": 1, "username": 1, "full_name": 1}))
+    staff_list = list(
+        users.find({"role": "staff"}, {"_id": 1, "username": 1, "full_name": 1})
+    )
     for staff in staff_list:
         staff["_id"] = str(staff["_id"])
 
     return jsonify({"success": True, "staff": staff_list})
+
 
 @admin_bp.route("/assign_schedule", methods=["POST"])
 @login_required
@@ -1043,7 +1055,7 @@ def assign_schedule():
         "start_date": start_date,
         "end_date": end_date,
         "shift_start": shift_start,
-        "shift_end": shift_end
+        "shift_end": shift_end,
     }
 
     result = db.schedules.insert_one(schedule)
@@ -1052,6 +1064,7 @@ def assign_schedule():
         return jsonify({"success": True, "message": "Schedule assigned successfully"})
     else:
         return jsonify({"success": False, "message": "Failed to assign schedule"}), 500
+
 
 @admin_bp.route("/get_schedules", methods=["GET"])
 @login_required
@@ -1073,7 +1086,6 @@ def get_schedules():
     return jsonify({"success": True, "schedules": schedules})
 
 
-
 @admin_bp.route("/get_pending_gatepasses", methods=["GET"])
 @login_required
 def get_pending_gatepasses():
@@ -1082,12 +1094,13 @@ def get_pending_gatepasses():
 
     pending_gatepasses = list(db.gatepasses.find({"status": "pending"}))
     for gatepass in pending_gatepasses:
-        gatepass['_id'] = str(gatepass['_id'])
-        gatepass['departure_time'] = gatepass['departure_time'].isoformat()
-        gatepass['return_time'] = gatepass['return_time'].isoformat()
-        gatepass['submitted_at'] = gatepass['submitted_at'].isoformat()
+        gatepass["_id"] = str(gatepass["_id"])
+        gatepass["departure_time"] = gatepass["departure_time"].isoformat()
+        gatepass["return_time"] = gatepass["return_time"].isoformat()
+        gatepass["submitted_at"] = gatepass["submitted_at"].isoformat()
 
     return jsonify({"success": True, "gatepasses": pending_gatepasses})
+
 
 @admin_bp.route("/process_gatepass", methods=["POST"])
 @login_required
@@ -1113,16 +1126,23 @@ def process_gatepass():
                 "status": action,
                 "admin_comment": admin_comment,
                 "processed_at": datetime.utcnow(),
-                "processed_by": session["user"]["username"]
+                "processed_by": session["user"]["username"],
             }
-        }
+        },
     )
 
     if result.modified_count > 0:
-        return jsonify({"success": True, "message": f"Gatepass {action}ed successfully"})
+        return jsonify(
+            {"success": True, "message": f"Gatepass {action}ed successfully"}
+        )
     else:
-        return jsonify({"success": False, "message": "Gatepass not found or no changes made"}), 404
-    
+        return (
+            jsonify(
+                {"success": False, "message": "Gatepass not found or no changes made"}
+            ),
+            404,
+        )
+
 
 @admin_bp.route("/update_fee_settings", methods=["POST"])
 @login_required
@@ -1137,7 +1157,7 @@ def update_fee_settings():
         "messFeeLateFee": float(data["messFeeLateFee"]),
         "rentDueDate": datetime.strptime(data["rentDueDate"], "%Y-%m-%d"),
         "rentFee": float(data["rentFee"]),
-        "rentFeeLateFee": float(data["rentFeeLateFee"])
+        "rentFeeLateFee": float(data["rentFeeLateFee"]),
     }
 
     db.fee_settings.update_one({}, {"$set": settings}, upsert=True)

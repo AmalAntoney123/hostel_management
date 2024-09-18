@@ -44,6 +44,41 @@ def create_payment_session():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@payment_bp.route("/create-checkout-session", methods=["POST"])
+@login_required
+def create_checkout_session():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    amount = data.get('amount')
+    description = data.get('description')
+    
+    if not amount or not description:
+        return jsonify({"success": False, "message": "Amount and description are required"}), 400
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'inr',
+                    'unit_amount': int(float(amount) * 100),
+                    'product_data': {
+                        'name': description,
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('payment.payment_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('payment.payment_cancel', _external=True),
+            client_reference_id=session['user']['_id']
+        )
+        return jsonify({"success": True, "checkoutUrl": checkout_session.url})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 @payment_bp.route("/payment_success")
 @login_required
 def payment_success():
