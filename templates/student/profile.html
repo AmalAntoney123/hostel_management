@@ -1,4 +1,136 @@
 <div class="tab-pane fade" id="profile" role="tabpanel">
     <h2>Profile Management</h2>
-    <!-- Add profile management content here -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Current Profile</h5>
+            <p><strong>Username:</strong> {{ user['username'] }}</p>
+            <p><strong>Full Name:</strong> <span id="displayFullName">{{ user.get('full_name', 'Not provided') }}</span></p>
+            <p><strong>Email:</strong> <span id="displayEmail">{{ user.get('email', 'Not provided') }}</span></p>
+            <p><strong>Phone:</strong> <span id="displayPhone">{{ user.get('phone', 'Not provided') }}</span></p>
+            <p><strong>Role:</strong> {{ user['role'] }}</p>
+            
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#updateProfileModal">
+                Update Profile
+            </button>
+            <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#changePasswordModal">
+                Change Password
+            </button>
+        </div>
+    </div>
+
+    <!-- Update Profile Modal -->
+    <div class="modal fade" id="updateProfileModal" tabindex="-1" role="dialog" aria-labelledby="updateProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateProfileModalLabel">Update Profile</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateProfileForm">
+                        <div class="form-group">
+                            <label for="full_name">Full Name</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.get('full_name', '') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user.get('email', '') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.get('phone', '') }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Profile</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" role="dialog" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="form-group">
+                            <label for="current_password">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new_password">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="8">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#updateProfileForm').submit(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: "{{ url_for('auth.update_profile') }}",
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    if (response.success) {
+                        alert('Profile updated successfully');
+                        // Update the displayed profile information in the card
+                        $('#displayFullName').text($('#full_name').val());
+                        $('#displayEmail').text($('#email').val());
+                        $('#displayPhone').text($('#phone').val());
+                        // Close the modal
+                        $('#updateProfileModal').modal('hide');
+                    } else {
+                        alert('Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while updating the profile');
+                }
+            });
+        });
+    
+        $('#changePasswordForm').submit(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: "{{ url_for('auth.change_password') }}",
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    if (response.success) {
+                        alert('Password changed successfully');
+                        $('#changePasswordForm')[0].reset();
+                        // Close the modal
+                        $('#changePasswordModal').modal('hide');
+                    } else {
+                        alert('Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while changing the password');
+                }
+            });
+        });
+    });
+</script>

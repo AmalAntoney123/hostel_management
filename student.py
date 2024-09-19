@@ -26,7 +26,10 @@ student_bp = Blueprint("student", __name__)
 def student_dashboard():
     if session["user"]["role"] != "student":
         return redirect(url_for("index"))
-    return render_template("student_dashboard.html")
+    user_id = ObjectId(session["user"]["_id"])
+    user = users.find_one({"_id": user_id})
+    active_tab = request.args.get('active_tab', 'dashboard')
+    return render_template("student_dashboard.html", user=user, active_tab=active_tab)
 
 
 @student_bp.route("/student/submit_complaint", methods=["POST"])
@@ -494,3 +497,10 @@ def get_notices():
         notice["posted_date"] = notice["posted_date"].isoformat()
 
     return jsonify({"success": True, "notices": notices})
+
+@student_bp.route("/profile")
+@login_required
+def profile():
+    user_id = ObjectId(session["user"]["_id"])
+    user = users.find_one({"_id": user_id})
+    return render_template("student/profile.html", user=user)
