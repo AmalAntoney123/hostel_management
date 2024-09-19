@@ -119,15 +119,11 @@ $(document).ready(function () {
 });
 
 function loadBlocks() {
-    console.log("Loading blocks...");
     $.get('/admin/get_blocks', function (response) {
-        console.log("Received raw response:", response);
         if (response.success) {
-            console.log("Blocks loaded successfully:", response.blocks);
             populateBlockDropdown(response.blocks);
             displayBlocks(response.blocks);
         } else {
-            console.error("Failed to load blocks:", response.message);
         }
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error("AJAX request failed:", textStatus, errorThrown);
@@ -143,24 +139,20 @@ function populateBlockDropdown(blocks) {
 }
 
 function displayBlocks(blocks) {
-    console.log("Displaying blocks:", blocks);
     const blockList = $('#block-list');
     blockList.empty();
     
     if (!blocks || blocks.length === 0) {
-        console.log("No blocks to display");
         blockList.append('<p>No blocks available.</p>');
         return;
     }
     
     blocks.forEach(block => {
-        console.log("Processing block:", JSON.stringify(block, null, 2));
         let totalRooms = 0;
         let floorCount = 0;
         if (block.floors && Array.isArray(block.floors)) {
             floorCount = block.floors.length;
             totalRooms = block.floors.reduce((sum, floor) => {
-                console.log("Processing floor:", floor);
                 return sum + parseInt(floor.singleRooms || 0) + 
                              parseInt(floor.doubleRooms || 0) + 
                              parseInt(floor.tripleRooms || 0);
@@ -182,7 +174,6 @@ function displayBlocks(blocks) {
                 </div>
             </div>
         `;
-        console.log("Appending block HTML:", blockHtml);
         blockList.append(blockHtml);
     });
 
@@ -382,7 +373,6 @@ function addBlock(e) {
         },
         error: function(jqXHR, textStatus, errorThrown) {
             console.error('Error:', textStatus, errorThrown);
-            console.log('Response:', jqXHR.responseText);
             alert('An error occurred while adding the block. Please check the console for more details.');
         }
     });

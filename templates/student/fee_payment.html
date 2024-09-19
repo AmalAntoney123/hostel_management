@@ -101,15 +101,12 @@ $(document).ready(function () {
     }
 
     function loadPastPayments() {
-        console.log("Fetching past payments...");
         $.ajax({
             url: '/student/get_past_payments',
             method: 'GET',
             dataType: 'json',  // Ensure jQuery parses the response as JSON
             success: function (response) {
-                console.log("Received response:", response);
-                console.log("Response type:", typeof response);
-                console.log("pastPayments:", response.pastPayments);
+                
                 
                 const pastPaymentsTable = $('#past-payments');
                 if (pastPaymentsTable.length === 0) {

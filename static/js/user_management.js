@@ -3,15 +3,12 @@ $(document).ready(function () {
 
     window.handleFormSubmit = function(event, role) {
         event.preventDefault();
-        console.log(`Form submission attempt for ${role}`);
 
         if (isSubmitting) {
-            console.log('Submission already in progress, ignoring');
             return false;
         }
 
         isSubmitting = true;
-        console.log('Starting submission process');
 
         const $form = $(event.target);
         const data = $form.serializeArray().reduce((obj, item) => {
@@ -20,7 +17,6 @@ $(document).ready(function () {
         }, {});
         data.role = role;
 
-        console.log('Sending data:', data);
 
         $.ajax({
             url: '/admin/add_user',
@@ -28,7 +24,6 @@ $(document).ready(function () {
             contentType: 'application/json',
             data: JSON.stringify(data),
             success: function (result) {
-                console.log('Received response:', result);
                 if (result.success) {
                     alert(`${role} added successfully. Username: ${result.username}, Password: ${result.password}, Email: ${result.email}`);
                     $form[0].reset();
@@ -42,7 +37,6 @@ $(document).ready(function () {
                 alert('An error occurred while adding the user.');
             },
             complete: function () {
-                console.log('Submission process completed');
                 isSubmitting = false;
             }
         });
@@ -52,15 +46,12 @@ $(document).ready(function () {
 
     window.handleBulkUpload = function(event) {
         event.preventDefault();
-        console.log('Bulk upload attempt');
 
         if (isSubmitting) {
-            console.log('Submission already in progress, ignoring');
             return false;
         }
 
         isSubmitting = true;
-        console.log('Starting bulk upload process');
 
         const $form = $(event.target);
         const formData = new FormData($form[0]);
@@ -85,7 +76,6 @@ $(document).ready(function () {
                 alert('An error occurred while uploading the file.');
             },
             complete: function () {
-                console.log('Bulk upload process completed');
                 isSubmitting = false;
             }
         });

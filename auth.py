@@ -16,7 +16,7 @@ def login():
             session["user"] = {
                 "username": user["username"],
                 "role": user["role"],
-                "_id": str(user["_id"])  # Add this line
+                "_id": str(user["_id"])  
             }
             flash(f"Welcome, {user['username']}!", "success")
             return redirect(url_for(f'{user["role"]}.{user["role"]}_dashboard'))
