@@ -1276,3 +1276,74 @@ def delete_notice(notice_id):
         return jsonify({"success": True, "message": "Notice deleted successfully"})
     else:
         return jsonify({"success": False, "message": "Failed to delete notice"}), 500
+
+@admin_bp.route("/create_meal_plan", methods=["POST"])
+@login_required
+def create_meal_plan():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    week_start = datetime.strptime(data["weekStart"], "%Y-%m-%d")
+    meal_plan = {
+        "week_start": week_start,
+        "meals": data["meals"]
+    }
+
+    result = db.meal_plans.update_one(
+        {"week_start": week_start},
+        {"$set": meal_plan},
+        upsert=True
+    )
+
+    if result.acknowledged:
+        return jsonify({"success": True, "message": "Meal plan created successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to create meal plan"}), 500
+
+@admin_bp.route("/update_meal_plan", methods=["POST"])
+@login_required
+def update_meal_plan():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    meal_plan = {
+        "monday": data["monday"],
+        "tuesday": data["tuesday"],
+        "wednesday": data["wednesday"],
+        "thursday": data["thursday"],
+        "friday": data["friday"],
+        "saturday": data["saturday"],
+        "sunday": data["sunday"]
+    }
+
+    result = db.meal_plan.replace_one({}, meal_plan, upsert=True)
+
+    if result.acknowledged:
+        return jsonify({"success": True, "message": "Meal plan updated successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to update meal plan"}), 500
+
+@admin_bp.route("/get_meal_plan", methods=["GET"])
+@login_required
+def get_meal_plan():
+    meal_plan = db.meal_plan.find_one()
+    if meal_plan:
+        meal_plan.pop('_id', None)
+        return jsonify({"success": True, "meal_plan": meal_plan})
+    else:
+        return jsonify({"success": False, "message": "Meal plan not found"}), 404
+
+@admin_bp.route("/get_meal_feedback", methods=["GET"])
+@login_required
+def get_meal_feedback():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    feedback = list(db.meal_feedback.find().sort("submitted_at", -1).limit(100))
+    for item in feedback:
+        item['_id'] = str(item['_id'])
+        item['submitted_at'] = item['submitted_at'].isoformat()
+
+    return jsonify({"success": True, "feedback": feedback})

@@ -1,4 +1,73 @@
 <div class="tab-pane fade" id="meal-plan" role="tabpanel">
     <h2>Meal Plan</h2>
-    <!-- Add meal plan viewing and preference selection content here -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Breakfast</th>
+                <th>Lunch</th>
+                <th>Dinner</th>
+                <th>Snack</th>
+            </tr>
+        </thead>
+        <tbody id="meal-plan-table">
+        </tbody>
+    </table>
+
+    <div class="mt-4">
+        <h3>Feedback</h3>
+        <form id="meal-feedback-form">
+            <div class="mb-3">
+                <label for="feedback-text" class="form-label">Your Feedback</label>
+                <textarea class="form-control" id="feedback-text" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Feedback</button>
+        </form>
+    </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    function loadMealPlan() {
+        $.get('/admin/get_meal_plan', function(response) {
+            if (response.success) {
+                const mealPlanTable = $('#meal-plan-table');
+                mealPlanTable.empty();
+                for (const [day, meals] of Object.entries(response.meal_plan)) {
+                    mealPlanTable.append(`
+                        <tr>
+                            <td>${day.charAt(0).toUpperCase() + day.slice(1)}</td>
+                            <td>${meals.breakfast}</td>
+                            <td>${meals.lunch}</td>
+                            <td>${meals.dinner}</td>
+                            <td>${meals.snack}</td>
+                        </tr>
+                    `);
+                }
+            }
+        });
+    }
+
+    loadMealPlan();
+
+    $('#meal-feedback-form').submit(function(e) {
+        e.preventDefault();
+        const feedback = $('#feedback-text').val();
+        
+        $.ajax({
+            url: '/student/submit_meal_feedback',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ feedback: feedback }),
+            success: function(response) {
+                if (response.success) {
+                    alert('Feedback submitted successfully');
+                    $('#feedback-text').val('');
+                } else {
+                    alert('Failed to submit feedback: ' + response.message);
+                }
+            }
+        });
+    });
+});
+</script>

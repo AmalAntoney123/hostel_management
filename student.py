@@ -504,3 +504,23 @@ def profile():
     user_id = ObjectId(session["user"]["_id"])
     user = users.find_one({"_id": user_id})
     return render_template("student/profile.html", user=user)
+
+@student_bp.route("/student/submit_meal_feedback", methods=["POST"])
+@login_required
+def submit_meal_feedback():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    feedback = {
+        "student_id": session["user"]["_id"],
+        "student_name": session["user"]["username"],
+        "feedback": data["feedback"],
+        "submitted_at": datetime.utcnow()
+    }
+
+    result = db.meal_feedback.insert_one(feedback)
+    if result.inserted_id:
+        return jsonify({"success": True, "message": "Feedback submitted successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to submit feedback"}), 500
