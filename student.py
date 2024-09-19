@@ -480,3 +480,17 @@ def is_payment_made(student_id, description, due_date):
         }
     )
     return payment is not None
+
+
+@student_bp.route("/student/get_notices", methods=["GET"])
+@login_required
+def get_notices():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    notices = list(db.notices.find({"$or": [{"target": "all"}, {"target": "students"}]}).sort("posted_date", -1))
+    for notice in notices:
+        notice["_id"] = str(notice["_id"])
+        notice["posted_date"] = notice["posted_date"].isoformat()
+
+    return jsonify({"success": True, "notices": notices})

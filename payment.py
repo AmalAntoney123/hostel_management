@@ -122,3 +122,33 @@ def update_payment_status(checkout_session):
                 {'student_id': student_id},
                 {'$set': {'last_rent_payment': datetime.utcnow()}}
             )
+            
+@payment_bp.route("/student/get_past_payments", methods=["GET"])
+@login_required
+def get_past_payments():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    student_id = session["user"]["_id"]
+    print(f"Fetching past payments for student ID: {student_id}")
+
+    try:
+        # Retrieve past payments for the student
+        past_payments = list(db.payments.find({"student_id": student_id}))
+        print(f"Found {len(past_payments)} past payments")
+
+        # Format the payments for the response
+        formatted_payments = []
+        for payment in past_payments:
+            formatted_payment = {
+                "payment_date": payment["payment_date"].isoformat(),
+                "description": payment.get("description", "N/A"),
+                "amount": payment["amount"]
+            }
+            formatted_payments.append(formatted_payment)
+
+        print("Formatted payments:", formatted_payments)
+        return jsonify({"success": True, "pastPayments": formatted_payments})
+    except Exception as e:
+        print(f"Error in get_past_payments: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500

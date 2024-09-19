@@ -1,29 +1,63 @@
 <div class="tab-pane fade" id="fee-payment" role="tabpanel">
-    <h2>Fee Payment</h2>
-    <div id="fee-info">
-        <p>Join Date: <span id="join-date"></span></p>
-        <p>Monthly Mess Fee Due Day: <span id="mess-fee-due-day"></span></p>
-        <p>Monthly Mess Fee: Rs.<span id="mess-fee"></span></p>
-        <p>Yearly Hostel Rent Due Date: <span id="rent-due-date"></span></p>
-        <p>Yearly Hostel Rent: Rs.<span id="rent-fee"></span></p>
+    <!-- Fee Information Card -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Your Fee Information</h5>
+        </div>
+        <div class="card-body">
+            <p> Your monthly mess fee is ₹<span id="mess-fee"></span>, due on the <span id="mess-fee-due-day"></span> of each month. The hostel rent of ₹<span id="rent-fee"></span> is to be paid by the <span id="rent-due-date"></span> monthly.</p>
+            <p>Please note that a late fee of 5% per day will be applied to any overdue payments. We encourage timely payments to avoid any additional charges.</p>
+        </div>
     </div>
-    <h3>Upcoming Payments</h3>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Due Date</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="upcoming-payments">
-            <!-- Upcoming payments will be populated here -->
-        </tbody>
-    </table>
+
+    <ul class="nav nav-tabs" id="payment-tabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#upcoming-payments-tab" data-toggle="tab">Upcoming Payments</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#past-payments-tab" data-toggle="tab">Past Payments</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="upcoming-payments-tab">
+            <h2 class="mt-3">Upcoming Payments</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Due Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="upcoming-payments">
+                    <!-- Upcoming payments will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="past-payments-tab">
+            <h2 class="mt-3">Past Payments</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Payment Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="past-payments">
+                    <!-- Past payments will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
-<script src="https://js.stripe.com/v3/"></script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script>
 $(document).ready(function () {
     function loadFeeInfo() {
@@ -49,12 +83,13 @@ $(document).ready(function () {
                             <td>${payment.description}</td>
                             <td>₹${payment.amount.toFixed(2)}</td>
                             <td>₹${payment.lateAmount.toFixed(2)}</td>
-                            <td>₹${totalAmount.toFixed(2)}</td>
+                            <td>${totalAmount.toFixed(2)}</td>
                             <td>${payment.status}</td>
                             <td>${payNowButton}</td>
                         </tr>
                     `);
                     });
+
                 } else {
                     alert('Failed to load fee information: ' + response.message);
                 }
@@ -65,7 +100,54 @@ $(document).ready(function () {
         });
     }
 
+    function loadPastPayments() {
+        console.log("Fetching past payments...");
+        $.ajax({
+            url: '/student/get_past_payments',
+            method: 'GET',
+            dataType: 'json',  // Ensure jQuery parses the response as JSON
+            success: function (response) {
+                console.log("Received response:", response);
+                console.log("Response type:", typeof response);
+                console.log("pastPayments:", response.pastPayments);
+                
+                const pastPaymentsTable = $('#past-payments');
+                if (pastPaymentsTable.length === 0) {
+                    console.error('Element with ID "past-payments" not found');
+                    return;
+                }
+                
+                pastPaymentsTable.empty();
+                
+                if (response && response.success && Array.isArray(response.pastPayments)) {
+                    if (response.pastPayments.length > 0) {
+                        response.pastPayments.forEach(function (payment) {
+                            pastPaymentsTable.append(`
+                            <tr>
+                                <td>${new Date(payment.payment_date).toLocaleDateString()}</td>
+                                <td>${payment.description}</td>
+                                <td>₹${parseFloat(payment.amount).toFixed(2)}</td>
+                            </tr>
+                            `);
+                        });
+                    } else {
+                        pastPaymentsTable.append('<tr><td colspan="3">No past payments found.</td></tr>');
+                    }
+                } else {
+                    console.error('Invalid response structure:', response);
+                    pastPaymentsTable.append('<tr><td colspan="3">Error loading past payments.</td></tr>');
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Error loading past payments:', status, error);
+                console.error('XHR object:', xhr);
+                $('#past-payments').empty().append('<tr><td colspan="3">Error loading past payments.</td></tr>');
+            }
+        });
+    }
+
     loadFeeInfo();
+    loadPastPayments();
 
     $(document).on('click', '.pay-now', function() {
         const amount = $(this).data('amount');

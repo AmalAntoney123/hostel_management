@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,14 +10,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <style>
-html, body {
+        html,
+        body {
             height: 100%;
         }
+
         .wrapper {
             display: flex;
             flex-wrap: nowrap;
             height: 100%;
         }
+
         #sidebar {
             min-width: 250px;
             max-width: 250px;
@@ -24,23 +28,29 @@ html, body {
             background-color: #f8f9fa;
             transition: all 0.3s;
         }
+
         #sidebar.collapsed {
             margin-left: -250px;
         }
+
         #content {
             flex: 1;
             overflow-y: auto;
             transition: all 0.3s;
         }
+
         @media (max-width: 768px) {
             #sidebar {
                 margin-left: -250px;
             }
+
             #sidebar.collapsed {
                 margin-left: 0;
             }
-        }    </style>
+        }
+    </style>
 </head>
+
 <body>
     <div class="wrapper">
         <!-- Sidebar -->
@@ -66,6 +76,12 @@ html, body {
                     <a href="#schedules" class="nav-link text-white" data-bs-toggle="pill">
                         <i class="bi bi-calendar3 me-2"></i>
                         Schedules
+                    </a>
+                </li>
+                <li>
+                    <a href="#notifications" class="nav-link text-white" data-bs-toggle="pill">
+                        <i class="bi bi-bell me-2"></i>
+                        Notifications
                     </a>
                 </li>
                 <li>
@@ -101,14 +117,17 @@ html, body {
             </ul>
             <hr>
             <div class="dropdown">
-                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
+                    id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
                     <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
                     <strong>{{ session['user']['username'] }}</strong>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
                     <li><a class="dropdown-item" href="#">Profile</a></li>
                     <li><a class="dropdown-item" href="#">Settings</a></li>
-                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Sign out</a></li>
                 </ul>
             </div>
@@ -119,7 +138,8 @@ html, body {
             <button type="button" id="sidebarCollapse" class="btn btn-dark d-md-none mb-3">
                 <i class="bi bi-list"></i>
             </button>
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <div
+                class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">Welcome, Staff {{ session['user']['username'] }}</h1>
             </div>
 
@@ -130,6 +150,7 @@ html, body {
                 {% include 'staff/schedules.html' %}
                 {% include 'staff/attendance.html' %}
                 {% include 'staff/complaints.html' %}
+                {% include 'staff/notifications.html' %}
                 {% include 'staff/inventory.html' %}
                 {% include 'staff/visitors.html' %}
                 {% include 'staff/meal_planning.html' %}
@@ -140,7 +161,7 @@ html, body {
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
 
-    
+
     <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
@@ -148,4 +169,5 @@ html, body {
         // ... (same script as student_dashboard.html) ...
     </script>
 </body>
+
 </html>

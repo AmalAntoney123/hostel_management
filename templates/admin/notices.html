@@ -1,0 +1,171 @@
+<div class="tab-pane fade" id="notices" role="tabpanel">
+    <h2>Manage Notices</h2>
+    <ul class="nav nav-tabs mb-3" id="noticesTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="post-notice-tab" data-bs-toggle="tab" data-bs-target="#post-notice" type="button" role="tab" aria-controls="post-notice" aria-selected="true">Post Notice</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="recent-notices-tab" data-bs-toggle="tab" data-bs-target="#recent-notices" type="button" role="tab" aria-controls="recent-notices" aria-selected="false">Recent Notices</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="noticesTabContent">
+        <div class="tab-pane fade show active" id="post-notice" role="tabpanel" aria-labelledby="post-notice-tab">
+            <form id="post-notice-form">
+                <input type="hidden" id="notice-id">
+                <div class="mb-3">
+                    <label for="notice-title" class="form-label">Title</label>
+                    <input type="text" class="form-control" id="notice-title" required>
+                </div>
+                <div class="mb-3">
+                    <label for="notice-content" class="form-label">Content</label>
+                    <textarea class="form-control" id="notice-content" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="notice-target" class="form-label">Target Audience</label>
+                    <select class="form-control" id="notice-target" required>
+                        <option value="all">All</option>
+                        <option value="students">Students</option>
+                        <option value="staff">Staff</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submit-notice">Post Notice</button>
+                <button type="button" class="btn btn-secondary" id="cancel-edit" style="display: none;">Cancel Edit</button>
+            </form>
+        </div>
+        <div class="tab-pane fade" id="recent-notices" role="tabpanel" aria-labelledby="recent-notices-tab">
+            <div id="recent-notices-list">
+                <!-- Recent notices will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    function resetForm() {
+        $('#notice-id').val('');
+        $('#notice-title').val('');
+        $('#notice-content').val('');
+        $('#notice-target').val('all');
+        $('#submit-notice').text('Post Notice');
+        $('#cancel-edit').hide();
+    }
+
+    $('#post-notice-form').submit(function(e) {
+        e.preventDefault();
+        const noticeId = $('#notice-id').val();
+        const url = noticeId ? `/admin/edit_notice/${noticeId}` : '/admin/post_notice';
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                title: $('#notice-title').val(),
+                content: $('#notice-content').val(),
+                target: $('#notice-target').val()
+            }),
+            success: function(response) {
+                if (response.success) {
+                    alert(noticeId ? 'Notice updated successfully' : 'Notice posted successfully');
+                    resetForm();
+                    loadRecentNotices();
+                } else {
+                    alert('Failed to ' + (noticeId ? 'update' : 'post') + ' notice: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('An error occurred: ' + error);
+            }
+        });
+    });
+
+    $('#cancel-edit').click(function() {
+        resetForm();
+    });
+
+    function loadRecentNotices() {
+        $.ajax({
+            url: '/admin/get_recent_notices',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    let recentNotices = $('#recent-notices-list');
+                    recentNotices.empty();
+                    response.notices.forEach(function(notice) {
+                        let noticeHtml = `
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">${notice.title}</h5>
+                                    <h6 class="card-subtitle mb-2 text-muted">
+                                        Posted on: ${new Date(notice.posted_date).toLocaleString()}
+                                        | Target: ${notice.target}
+                                    </h6>
+                                    <p class="card-text">${notice.content}</p>
+                                    <button class="btn btn-sm btn-primary edit-notice" data-id="${notice._id}">Edit</button>
+                                    <button class="btn btn-sm btn-danger delete-notice" data-id="${notice._id}">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                        recentNotices.append(noticeHtml);
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading recent notices:', error);
+            }
+        });
+    }
+
+    $(document).on('click', '.edit-notice', function() {
+        const noticeId = $(this).data('id');
+        $.ajax({
+            url: `/admin/get_notice/${noticeId}`,
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    $('#notice-id').val(response.notice._id);
+                    $('#notice-title').val(response.notice.title);
+                    $('#notice-content').val(response.notice.content);
+                    $('#notice-target').val(response.notice.target);
+                    $('#submit-notice').text('Update Notice');
+                    $('#cancel-edit').show();
+                    $('#post-notice-tab').tab('show');
+                } else {
+                    alert('Failed to load notice: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('An error occurred: ' + error);
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-notice', function() {
+        if (confirm('Are you sure you want to delete this notice?')) {
+            const noticeId = $(this).data('id');
+            $.ajax({
+                url: `/admin/delete_notice/${noticeId}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        alert('Notice deleted successfully');
+                        loadRecentNotices();
+                    } else {
+                        alert('Failed to delete notice: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('An error occurred: ' + error);
+                }
+            });
+        }
+    });
+
+    $('#recent-notices-tab').on('shown.bs.tab', function (e) {
+        loadRecentNotices();
+    });
+
+    loadRecentNotices();
+});
+</script>

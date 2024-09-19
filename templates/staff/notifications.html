@@ -1,30 +1,19 @@
 <div class="tab-pane fade" id="notifications" role="tabpanel">
     <h2>Notifications</h2>
-    <div class="row">
-        <div class="col-md-8">
-            <h3>Notice Board</h3>
-            <div id="notice-board">
-                <!-- Notices will be populated here -->
-            </div>
-        </div>
-        <div class="col-md-4">
-            <h3>Personal Notifications</h3>
-            <div id="personal-notifications">
-                <!-- Personal notifications will be populated here -->
-            </div>
-        </div>
+    <div id="staff-notice-board">
+        <!-- Notices will be populated here -->
     </div>
 </div>
 
 <script>
 $(document).ready(function() {
-    function loadNotices() {
+    function loadStaffNotices() {
         $.ajax({
-            url: '/student/get_notices',
+            url: '/staff/get_notices',
             type: 'GET',
             success: function(response) {
                 if (response.success) {
-                    let noticeBoard = $('#notice-board');
+                    let noticeBoard = $('#staff-notice-board');
                     noticeBoard.empty();
                     response.notices.forEach(function(notice) {
                         let noticeHtml = `
@@ -46,6 +35,12 @@ $(document).ready(function() {
         });
     }
 
-    loadNotices();
+    // Load notices when the notifications tab is shown
+    $('a[href="#notifications"]').on('shown.bs.tab', function (e) {
+        loadStaffNotices();
+    });
+
+    // Initial load of notices
+    loadStaffNotices();
 });
 </script>

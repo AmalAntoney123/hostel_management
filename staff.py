@@ -126,3 +126,16 @@ def get_staff_schedule():
         schedule["end_date"] = schedule["end_date"].strftime("%Y-%m-%d")
 
     return jsonify({"success": True, "schedules": schedules})
+
+@staff_bp.route("/staff/get_notices", methods=["GET"])
+@login_required
+def get_staff_notices():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    notices = list(db.notices.find({"$or": [{"target": "all"}, {"target": "staff"}]}).sort("posted_date", -1))
+    for notice in notices:
+        notice["_id"] = str(notice["_id"])
+        notice["posted_date"] = notice["posted_date"].isoformat()
+
+    return jsonify({"success": True, "notices": notices})

@@ -1177,3 +1177,102 @@ def get_fee_settings():
         return jsonify({"success": True, "settings": settings})
     else:
         return jsonify({"success": False, "message": "Fee settings not found"})
+
+@admin_bp.route("/post_notice", methods=["POST"])
+@login_required
+def post_notice():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    title = data.get("title")
+    content = data.get("content")
+    target = data.get("target")
+
+    if not all([title, content, target]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    notice = {
+        "title": title,
+        "content": content,
+        "target": target,
+        "posted_date": datetime.utcnow(),
+        "posted_by": session["user"]["username"]
+    }
+
+    result = db.notices.insert_one(notice)
+
+    if result.inserted_id:
+        return jsonify({"success": True, "message": "Notice posted successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to post notice"}), 500
+
+@admin_bp.route("/get_recent_notices", methods=["GET"])
+@login_required
+def get_recent_notices():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    notices = list(db.notices.find().sort("posted_date", -1).limit(10))
+    for notice in notices:
+        notice["_id"] = str(notice["_id"])
+        notice["posted_date"] = notice["posted_date"].isoformat()
+
+    return jsonify({"success": True, "notices": notices})
+
+
+@admin_bp.route("/get_notice/<notice_id>", methods=["GET"])
+@login_required
+def get_notice(notice_id):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    notice = db.notices.find_one({"_id": ObjectId(notice_id)})
+    if notice:
+        notice["_id"] = str(notice["_id"])
+        notice["posted_date"] = notice["posted_date"].isoformat()
+        return jsonify({"success": True, "notice": notice})
+    else:
+        return jsonify({"success": False, "message": "Notice not found"}), 404
+
+@admin_bp.route("/edit_notice/<notice_id>", methods=["POST"])
+@login_required
+def edit_notice(notice_id):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    title = data.get("title")
+    content = data.get("content")
+    target = data.get("target")
+
+    if not all([title, content, target]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    result = db.notices.update_one(
+        {"_id": ObjectId(notice_id)},
+        {"$set": {
+            "title": title,
+            "content": content,
+            "target": target,
+            "updated_date": datetime.utcnow()
+        }}
+    )
+
+    if result.modified_count > 0:
+        return jsonify({"success": True, "message": "Notice updated successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to update notice"}), 500
+
+@admin_bp.route("/delete_notice/<notice_id>", methods=["POST"])
+@login_required
+def delete_notice(notice_id):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    result = db.notices.delete_one({"_id": ObjectId(notice_id)})
+
+    if result.deleted_count > 0:
+        return jsonify({"success": True, "message": "Notice deleted successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to delete notice"}), 500
