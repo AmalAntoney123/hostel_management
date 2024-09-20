@@ -1,4 +1,67 @@
 <div class="tab-pane fade" id="outing">
-    <h3>Outing</h3>
-    <!-- Add outing content -->
+    <h3>Student's Outing History</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Reason</th>
+                <th>Departure Time</th>
+                <th>Return Time</th>
+                <th>Status</th>
+                <th>Admin Comment</th>
+            </tr>
+        </thead>
+        <tbody id="outing-history">
+            <!-- Outing history will be populated here -->
+        </tbody>
+    </table>
 </div>
+
+<script>
+$(document).ready(function() {
+    function loadOutingHistory() {
+        console.log("Loading outing history...");  // Debug log
+        $.ajax({
+            url: '/parent/get_student_outing_history',
+            method: 'GET',
+            success: function(response) {
+                var outingHistory = $('#outing-history');
+                outingHistory.empty();
+                if (response.outings && response.outings.length > 0) {
+                    response.outings.forEach(function(outing) {
+                        outingHistory.append(`
+                            <tr>
+                                <td>${outing.reason}</td>
+                                <td>${new Date(outing.departure_time).toLocaleString()}</td>
+                                <td>${new Date(outing.return_time).toLocaleString()}</td>
+                                <td>${outing.status}</td>
+                                <td>${outing.admin_comment || ''}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    outingHistory.append('<tr><td colspan="5">No outing history found.</td></tr>');
+                }
+            },
+            error: function(xhr) {
+                console.error("Error loading outing history:", xhr);  // Debug log
+                alert('Error loading outing history: ' + xhr.responseJSON.message);
+            }
+        });
+    }
+
+    // Load outing history when the page loads
+    loadOutingHistory();
+
+    // Load outing history when the tab is shown
+    $('a[data-bs-toggle="tab"][href="#outing"]').on('shown.bs.tab', function (e) {
+        console.log("Outing tab shown, loading history...");  // Debug log
+        loadOutingHistory();
+    });
+
+    // Add a button to manually reload the outing history
+    $('#outing').prepend('<button id="reload-outing-history" class="btn btn-primary mb-3">Reload Outing History</button>');
+    $('#reload-outing-history').on('click', function() {
+        loadOutingHistory();
+    });
+});
+</script>

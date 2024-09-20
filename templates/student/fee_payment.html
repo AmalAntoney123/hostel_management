@@ -76,14 +76,18 @@ $(document).ready(function () {
                     upcomingPayments.empty();
                     response.feeInfo.upcomingPayments.forEach(function (payment) {
                         const totalAmount = payment.amount + payment.lateAmount;
-                        const payNowButton = `<button class="btn btn-primary btn-sm pay-now" data-amount="${totalAmount}" data-description="${payment.description}">Pay Now</button>`;
+                        const payNowButton = `
+                            <button class="btn btn-primary btn-sm pay-now" data-amount="${totalAmount}" data-description="${payment.description}">
+                                <span class="button-text">Pay Now</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            </button>`;
                         upcomingPayments.append(`
                         <tr>
                             <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
                             <td>${payment.description}</td>
                             <td>₹${payment.amount.toFixed(2)}</td>
                             <td>₹${payment.lateAmount.toFixed(2)}</td>
-                            <td>${totalAmount.toFixed(2)}</td>
+                            <td>₹${totalAmount.toFixed(2)}</td>
                             <td>${payment.status}</td>
                             <td>${payNowButton}</td>
                         </tr>
@@ -147,8 +151,14 @@ $(document).ready(function () {
     loadPastPayments();
 
     $(document).on('click', '.pay-now', function() {
-        const amount = $(this).data('amount');
-        const description = $(this).data('description');
+        const button = $(this);
+        const amount = button.data('amount');
+        const description = button.data('description');
+        
+        // Disable button and show loader
+        button.prop('disabled', true);
+        button.find('.button-text').addClass('d-none');
+        button.find('.spinner-border').removeClass('d-none');
         
         $.ajax({
             url: '/create-checkout-session',
@@ -163,10 +173,18 @@ $(document).ready(function () {
                     window.location.href = response.checkoutUrl;
                 } else {
                     alert('Failed to create checkout session: ' + response.message);
+                    // Re-enable button and hide loader
+                    button.prop('disabled', false);
+                    button.find('.button-text').removeClass('d-none');
+                    button.find('.spinner-border').addClass('d-none');
                 }
             },
             error: function() {
                 alert('An error occurred while creating the checkout session.');
+                // Re-enable button and hide loader
+                button.prop('disabled', false);
+                button.find('.button-text').removeClass('d-none');
+                button.find('.spinner-border').addClass('d-none');
             }
         });
     });

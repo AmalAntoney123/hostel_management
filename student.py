@@ -9,7 +9,7 @@ from flask import (
 )
 from face_recognition_utils import process_face_image
 from utils import login_required
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config import db, users
 from bson import ObjectId
 import traceback
@@ -401,25 +401,32 @@ def get_student_gatepasses():
 @student_bp.route("/student/get_fee_info", methods=["GET"])
 @login_required
 def get_fee_info():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
     try:
-        if session["user"]["role"] != "student":
-            return jsonify({"success": False, "message": "Unauthorized"}), 403
-
-        fee_settings = db.fee_settings.find_one()
-        if not fee_settings:
-            return jsonify({"success": False, "message": "Fee settings not found"}), 404
-
         student_id = session["user"]["_id"]
         student = users.find_one({"_id": ObjectId(student_id)})
         if not student:
             return jsonify({"success": False, "message": "Student not found"}), 404
 
+        fee_settings = db.fee_settings.find_one()
+        if not fee_settings:
+            return jsonify({"success": False, "message": "Fee settings not found"}), 404
+
         join_date = student.get("join_date")
         if not join_date:
             return jsonify({"success": False, "message": "Student join date not found"}), 404
 
-        join_date = parse(join_date)
-        current_date = datetime.now(tzutc())
+        # Ensure join_date is timezone-aware
+        if isinstance(join_date, datetime):
+            if join_date.tzinfo is None:
+                join_date = join_date.replace(tzinfo=timezone.utc)
+        else:
+            # If it's a string, parse it and make it timezone-aware
+            join_date = datetime.fromisoformat(join_date).replace(tzinfo=timezone.utc)
+
+        current_date = datetime.now(timezone.utc)
         upcoming_payments = []
 
         if join_date <= current_date:
@@ -462,7 +469,7 @@ def get_fee_info():
                     break
 
             # Calculate hostel rent
-            rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year, tzinfo=tzutc())
+            rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year, tzinfo=timezone.utc)
             if rent_due_date < current_date:
                 rent_due_date = rent_due_date.replace(year=current_date.year + 1)
             
@@ -493,18 +500,15 @@ def get_fee_info():
         return jsonify({"success": True, "feeInfo": fee_info})
     except Exception as e:
         print(f"Error in get_fee_info: {str(e)}")
+        print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
 
 
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
-    # Start with the current month
-    next_date = current_date.replace(day=1) + relativedelta(months=months_ahead)
-
-    # Set the day to the due day
+    next_date = current_date.replace(day=1, tzinfo=timezone.utc) + relativedelta(months=months_ahead)
     next_date = next_date.replace(
         day=min(due_day, calendar.monthrange(next_date.year, next_date.month)[1])
     )
-
     return next_date
 
 
@@ -522,7 +526,7 @@ def is_payment_made(student_id, description, due_date):
             "description": description,
             "payment_date": {
                 "$gte": due_date - timedelta(days=30),
-                "$lte": datetime.utcnow(),
+                "$lte": datetime.now(timezone.utc),
             },
         }
     )

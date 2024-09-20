@@ -1,9 +1,10 @@
 import stripe
-from flask import Blueprint, request, jsonify, session, url_for, render_template
+from flask import Blueprint, request, jsonify, session, url_for, render_template, redirect
 from utils import login_required
 from config import db
 import os
 from datetime import datetime
+from bson import ObjectId
 
 payment_bp = Blueprint('payment', __name__)
 
@@ -47,7 +48,7 @@ def create_payment_session():
 @payment_bp.route("/create-checkout-session", methods=["POST"])
 @login_required
 def create_checkout_session():
-    if session["user"]["role"] != "student":
+    if session["user"]["role"] not in ["student", "parent"]:
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
     data = request.json
@@ -58,6 +59,15 @@ def create_checkout_session():
         return jsonify({"success": False, "message": "Amount and description are required"}), 400
 
     try:
+        # If the user is a parent, we need to get the associated student's ID
+        if session["user"]["role"] == "parent":
+            parent = db.users.find_one({"_id": ObjectId(session["user"]["_id"])})
+            if not parent or "associated_student" not in parent:
+                return jsonify({"success": False, "message": "No associated student found"}), 400
+            student_id = str(parent["associated_student"])
+        else:
+            student_id = session['user']['_id']
+
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -73,11 +83,12 @@ def create_checkout_session():
             mode='payment',
             success_url=url_for('payment.payment_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('payment.payment_cancel', _external=True),
-            client_reference_id=session['user']['_id'],
+            client_reference_id=student_id,
             metadata={'description': description}  
         )
         return jsonify({"success": True, "checkoutUrl": checkout_session.url})
     except Exception as e:
+        print(f"Error in create_checkout_session: {str(e)}")  # Add this line for debugging
         return jsonify({"success": False, "message": str(e)}), 500
 
 @payment_bp.route("/payment_success")
@@ -88,12 +99,25 @@ def payment_success():
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         if checkout_session.payment_status == 'paid':
             update_payment_status(checkout_session)
-    return render_template('payment_success.html')
+    
+    # Redirect based on user role
+    if session["user"]["role"] == "student":
+        return redirect(url_for('student.student_dashboard', active_tab='fees'))
+    elif session["user"]["role"] == "parent":
+        return redirect(url_for('parent.parent_dashboard', active_tab='fees'))
+    else:
+        return redirect(url_for('index'))
 
 @payment_bp.route("/payment_cancel")
 @login_required
 def payment_cancel():
-    return render_template('payment_cancel.html')
+    # Redirect based on user role
+    if session["user"]["role"] == "student":
+        return redirect(url_for('student.student_dashboard', active_tab='fees'))
+    elif session["user"]["role"] == "parent":
+        return redirect(url_for('parent.parent_dashboard', active_tab='fees'))
+    else:
+        return redirect(url_for('index'))
 
 def update_payment_status(checkout_session):
     student_id = checkout_session.client_reference_id

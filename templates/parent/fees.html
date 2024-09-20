@@ -1,4 +1,162 @@
 <div class="tab-pane fade" id="fees">
     <h3>Fees</h3>
-    <!-- Add fees content -->
+    <!-- Fee Information Card -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Your Child's Fee Information</h5>
+        </div>
+        <div class="card-body">
+            <p>The monthly mess fee is ₹<span id="mess-fee"></span>, due on the <span id="mess-fee-due-day"></span> of each month. The hostel rent of ₹<span id="rent-fee"></span> is to be paid by the <span id="rent-due-date"></span> monthly.</p>
+            <p>Please note that a late fee of 5% per day will be applied to any overdue payments. We encourage timely payments to avoid any additional charges.</p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="payment-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upcoming-payments-tab" data-bs-toggle="tab" data-bs-target="#upcoming-payments" type="button" role="tab" aria-controls="upcoming-payments" aria-selected="true">Upcoming Payments</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="past-payments-tab" data-bs-toggle="tab" data-bs-target="#past-payments" type="button" role="tab" aria-controls="past-payments" aria-selected="false">Past Payments</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="payment-tabs-content">
+        <div class="tab-pane fade show active" id="upcoming-payments" role="tabpanel" aria-labelledby="upcoming-payments-tab">
+            <h2 class="mt-3">Upcoming Payments</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Due Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Late Fee</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="upcoming-payments-list">
+                    <!-- Upcoming payments will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="past-payments" role="tabpanel" aria-labelledby="past-payments-tab">
+            <h2 class="mt-3">Past Payments</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Payment Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="past-payments-list">
+                    <!-- Past payments will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+$(document).ready(function () {
+    function loadFeeInfo() {
+        $.ajax({
+            url: '/parent/get_fee_info',
+            method: 'GET',
+            success: function (response) {
+                if (response.success) {
+                    $('#mess-fee-due-day').text(response.feeInfo.messFeeDay);
+                    $('#mess-fee').text(response.feeInfo.messFee.toFixed(2));
+                    $('#rent-due-date').text(response.feeInfo.rentDueDate);
+                    $('#rent-fee').text(response.feeInfo.rentFee.toFixed(2));
+
+                    const upcomingPayments = $('#upcoming-payments-list');
+                    upcomingPayments.empty();
+                    response.feeInfo.upcomingPayments.forEach(function (payment) {
+                        const totalAmount = payment.amount + payment.lateAmount;
+                        const payNowButton = `<button class="btn btn-primary btn-sm pay-now" data-amount="${totalAmount}" data-description="${payment.description}">Pay Now</button>`;
+                        upcomingPayments.append(`
+                        <tr>
+                            <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
+                            <td>${payment.description}</td>
+                            <td>₹${payment.amount.toFixed(2)}</td>
+                            <td>₹${payment.lateAmount.toFixed(2)}</td>
+                            <td>₹${totalAmount.toFixed(2)}</td>
+                            <td>${payment.status}</td>
+                            <td>${payNowButton}</td>
+                        </tr>
+                    `);
+                    });
+                } else {
+                    alert('Failed to load fee information: ' + response.message);
+                }
+            },
+            error: function () {
+                alert('An error occurred while loading fee information.');
+            }
+        });
+    }
+
+    function loadPastPayments() {
+        $.ajax({
+            url: '/parent/get_past_payments',
+            method: 'GET',
+            success: function (response) {
+                const pastPaymentsTable = $('#past-payments-list');
+                pastPaymentsTable.empty();
+                
+                if (response.success) {
+                    if (response.pastPayments && response.pastPayments.length > 0) {
+                        response.pastPayments.forEach(function (payment) {
+                            pastPaymentsTable.append(`
+                            <tr>
+                                <td>${new Date(payment.payment_date).toLocaleDateString()}</td>
+                                <td>${payment.description}</td>
+                                <td>₹${parseFloat(payment.amount).toFixed(2)}</td>
+                            </tr>
+                            `);
+                        });
+                    } else {
+                        pastPaymentsTable.append('<tr><td colspan="3">No past payments found.</td></tr>');
+                    }
+                } else {
+                    pastPaymentsTable.append(`<tr><td colspan="3">Error: ${response.message}</td></tr>`);
+                }
+            },
+            error: function (xhr, status, error) {
+                $('#past-payments-list').empty().append(`<tr><td colspan="3">Error loading past payments: ${error}</td></tr>`);
+            }
+        });
+    }
+
+    loadFeeInfo();
+    loadPastPayments();
+
+    $(document).on('click', '.pay-now', function() {
+        const amount = $(this).data('amount');
+        const description = $(this).data('description');
+        
+        $.ajax({
+            url: '/create-checkout-session',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                amount: amount,
+                description: description
+            }),
+            success: function(response) {
+                if (response.success) {
+                    window.location.href = response.checkoutUrl;
+                } else {
+                    alert('Failed to create checkout session: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('An error occurred while creating the checkout session.');
+            }
+        });
+    });
+});
+</script>
