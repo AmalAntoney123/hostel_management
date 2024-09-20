@@ -29,17 +29,25 @@
                                     placeholder="Full Name" required onkeypress="return /[a-zA-Z\s]/i.test(event.key)">
                             </div>
                             <div class="col">
-                                <input type="email" class="form-control" id="email" name="email"  placeholder="Email Address"required>
+                                <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
                             </div>
                             <div class="col">
-                                <input type="tel" class="form-control" name="phone" placeholder="Phone"
-                                    required onkeypress="return /[0-9+]/i.test(event.key)">
-                            </div>
-                            
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary">Add Student</button>
+                                <input type="tel" class="form-control" name="phone" placeholder="Phone Number" required>
                             </div>
                         </div>
+                        <div class="row mb-3">
+                            <div class="col">
+                                <input type="text" class="form-control" name="parent_name"
+                                    placeholder="Parent Name" required onkeypress="return /[a-zA-Z\s]/i.test(event.key)">
+                            </div>
+                            <div class="col">
+                                <input type="email" class="form-control" name="parent_email" placeholder="Parent Email" required>
+                            </div>
+                            <div class="col">
+                                <input type="tel" class="form-control" name="parent_phone" placeholder="Parent Phone" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Student</button>
                     </form>
                     <div id="student-list" class="mt-4">
                         <h4>Student List</h4>

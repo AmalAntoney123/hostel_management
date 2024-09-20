@@ -43,6 +43,9 @@ def add_user():
     email = data.get("email")
     phone = data.get("phone")
     role = data.get("role")
+    parent_name = data.get("parent_name")
+    parent_email = data.get("parent_email")
+    parent_phone = data.get("parent_phone")
 
     if not all([username, full_name, email, phone, role]):
         return {"success": False, "message": "Missing required fields"}, 400
@@ -62,17 +65,47 @@ def add_user():
         "role": role,
         "password": hashed_password,
         "is_active": True,
-        "join_date": datetime.utcnow(),  # Automatically set join date to current date and time
+        "join_date": datetime.utcnow(),
     }
 
-    users.insert_one(new_user)
+    result = users.insert_one(new_user)
+    student_id = result.inserted_id
 
-    return {
-        "success": True,
-        "message": f"{role.capitalize()} added successfully",
-        "username": username,
-        "password": password,
-    }
+    if role == "student" and parent_name and parent_email and parent_phone:
+        parent_username = f"parent_{username}"
+        parent_password = f"{parent_username}@{parent_phone[-4:]}"
+        parent_hashed_password = generate_password_hash(parent_password)
+
+        new_parent = {
+            "username": parent_username,
+            "full_name": parent_name,
+            "email": parent_email,
+            "phone": parent_phone,
+            "role": "parent",
+            "password": parent_hashed_password,
+            "is_active": True,
+            "join_date": datetime.utcnow(),
+            "associated_student": student_id
+        }
+
+        users.insert_one(new_parent)
+        users.update_one({"_id": student_id}, {"$set": {"associated_parent": parent_username}})
+
+        return {
+            "success": True,
+            "message": f"Student and parent added successfully",
+            "username": username,
+            "password": password,
+            "parent_username": parent_username,
+            "parent_password": parent_password,
+        }
+    else:
+        return {
+            "success": True,
+            "message": f"{role.capitalize()} added successfully",
+            "username": username,
+            "password": password,
+        }
 
 
 @admin_bp.route("/get_users/<role>", methods=["GET"])
@@ -120,20 +153,22 @@ def bulk_upload_users():
         return {"success": False, "message": "Invalid user type"}, 400
 
     try:
-        df = (
-            pd.read_excel(file)
-            if file.filename.endswith((".xls", ".xlsx"))
-            else pd.read_csv(file)
-        )
+        df = pd.read_excel(file) if file.filename.endswith((".xls", ".xlsx")) else pd.read_csv(file)
+
         required_columns = ["username", "full_name", "email", "phone"]
+        
+        if user_type == "student":
+            required_columns.extend(["parent_name", "parent_email", "parent_phone"])
+
 
         if not all(col in df.columns for col in required_columns):
-            return {"success": False, "message": "Missing required columns"}, 400
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            return {"success": False, "message": f"Missing required columns: {', '.join(missing_columns)}"}, 400
 
         success_count = 0
         error_count = 0
 
-        for _, row in df.iterrows():
+        for index, row in df.iterrows():
             username = row["username"]
             full_name = row["full_name"]
             email = row["email"]
@@ -141,6 +176,7 @@ def bulk_upload_users():
 
             existing_user = users.find_one({"username": username})
             if existing_user:
+                print(f"User {username} already exists")  # Debug log
                 error_count += 1
                 continue
 
@@ -158,7 +194,33 @@ def bulk_upload_users():
                 "join_date": datetime.utcnow(),
             }
 
-            users.insert_one(new_user)
+            result = users.insert_one(new_user)
+            student_id = result.inserted_id
+
+            if user_type == "student":
+                parent_name = row["parent_name"]
+                parent_email = row["parent_email"]
+                parent_phone = str(row["parent_phone"])
+
+                parent_username = f"parent_{username}"
+                parent_password = f"{parent_username}@{parent_phone[-4:]}"
+                parent_hashed_password = generate_password_hash(parent_password)
+
+                new_parent = {
+                    "username": parent_username,
+                    "full_name": parent_name,
+                    "email": parent_email,
+                    "phone": parent_phone,
+                    "role": "parent",
+                    "password": parent_hashed_password,
+                    "is_active": True,
+                    "join_date": datetime.utcnow(),
+                    "associated_student": student_id
+                }
+
+                users.insert_one(new_parent)
+                users.update_one({"_id": student_id}, {"$set": {"associated_parent": parent_username}})
+
             success_count += 1
 
         return {

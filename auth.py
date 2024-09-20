@@ -14,15 +14,30 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
         user = users.find_one({"username": username})
+        
+        if not user:
+            # Check if the username is a parent name
+            parent = users.find_one({"full_name": username, "role": "parent"})
+            if parent:
+                user = parent
+            else:
+                flash("Invalid username or password", "error")
+                return render_template("login.html")
+
         if user and check_password_hash(user["password"], password):
             session["user"] = {
                 "username": user["username"],
-                "email": user["email"],  # Add this line
+                "email": user["email"],
                 "role": user["role"],
                 "_id": str(user["_id"])
             }
-            flash(f"Welcome, {user['username']}!", "success")
-            return redirect(url_for(f'{user["role"]}.{user["role"]}_dashboard'))
+            if user["role"] == "parent":
+                session["user"]["associated_student"] = str(user["associated_student"])
+                flash(f"Welcome, {user['full_name']}!", "success")
+                return redirect(url_for("parent.parent_dashboard"))
+            else:
+                flash(f"Welcome, {user['username']}!", "success")
+                return redirect(url_for(f'{user["role"]}.{user["role"]}_dashboard'))
         else:
             flash("Invalid username or password", "error")
     return render_template("login.html")

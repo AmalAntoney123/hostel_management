@@ -1,4 +1,44 @@
 <div class="tab-pane fade" id="visitors" role="tabpanel">
-    <h2>Visitors</h2>
-    <!-- Add visitor history viewing content here -->
+
+    <h2>Visitor Request</h2>
+    <form id="visitor-request-form">
+        <div class="mb-3">
+            <label for="visitor-name" class="form-label">Visitor Name</label>
+            <input type="text" class="form-control" id="visitor-name" required>
+        </div>
+        <div class="mb-3">
+            <label for="visitor-relation" class="form-label">Relation</label>
+            <input type="text" class="form-control" id="visitor-relation" required>
+        </div>
+        <div class="mb-3">
+            <label for="visit-date" class="form-label">Visit Date</label>
+            <input type="date" class="form-control" id="visit-date" required>
+        </div>
+        <div class="mb-3">
+            <label for="visit-time" class="form-label">Visit Time</label>
+            <input type="time" class="form-control" id="visit-time" required>
+        </div>
+        <div class="mb-3">
+            <label for="visit-purpose" class="form-label">Purpose of Visit</label>
+            <textarea class="form-control" id="visit-purpose" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Visitor Request</button>
+    </form>
+    <hr>
+    <h3>My Visitor Requests</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Visitor Name</th>
+                <th>Relation</th>
+                <th>Visit Date</th>
+                <th>Visit Time</th>
+                <th>Purpose</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="visitor-requests-list">
+            <!-- Visitor requests will be populated here -->
+        </tbody>
+    </table>
 </div>

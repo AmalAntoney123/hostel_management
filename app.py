@@ -5,6 +5,7 @@ from admin import admin_bp
 from student import student_bp
 from staff import staff_bp
 from payment import payment_bp
+from parent import parent_bp
 import os
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
@@ -15,6 +16,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(student_bp)
 app.register_blueprint(staff_bp)
+app.register_blueprint(parent_bp)
 app.register_blueprint(payment_bp)
 
 @app.route("/")
