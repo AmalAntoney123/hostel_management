@@ -616,3 +616,64 @@ def get_student_attendance():
     except Exception as e:
         print(f"Error fetching student attendance: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while fetching attendance"}), 500
+    
+    
+@student_bp.route("/student/request_visitor_pass", methods=["POST"])
+@login_required
+def request_visitor_pass():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        visitor_name = data.get("visitorName")
+        relation = data.get("relation")
+        visit_date = data.get("visitDate")
+        visit_time = data.get("visitTime")
+        purpose = data.get("purpose")
+
+        if not all([visitor_name, relation, visit_date, visit_time, purpose]):
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        visitor_pass = {
+            "student_id": session["user"]["_id"],
+            "student_name": session["user"]["username"],
+            "visitor_name": visitor_name,
+            "relation": relation,
+            "visit_date": datetime.fromisoformat(visit_date),
+            "visit_time": visit_time,
+            "purpose": purpose,
+            "status": "pending_parent",
+            "parent_approval": None,
+            "admin_approval": None,
+            "submitted_at": datetime.utcnow(),
+        }
+
+        result = db.visitor_passes.insert_one(visitor_pass)
+
+        if result.inserted_id:
+            return jsonify({"success": True, "message": "Visitor pass request submitted successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to submit visitor pass request"}), 500
+
+    except Exception as e:
+        print(f"Error submitting visitor pass request: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@student_bp.route("/student/get_visitor_passes", methods=["GET"])
+@login_required
+def get_visitor_passes():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        visitor_passes = list(db.visitor_passes.find({"student_id": session["user"]["_id"]}))
+        for pass_ in visitor_passes:
+            pass_["_id"] = str(pass_["_id"])
+            pass_["visit_date"] = pass_["visit_date"].isoformat()
+            pass_["submitted_at"] = pass_["submitted_at"].isoformat()
+
+        return jsonify({"success": True, "visitorPasses": visitor_passes})
+    except Exception as e:
+        print(f"Error fetching visitor passes: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500

@@ -1541,3 +1541,98 @@ def get_attendance():
     except Exception as e:
         print(f"Error fetching attendance: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while fetching attendance"}), 500
+    
+
+@admin_bp.route("/get_pending_visitor_passes", methods=["GET"])
+@login_required
+def get_pending_visitor_passes():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        pending_passes = list(db.visitor_passes.find({"status": "pending_admin"}))
+
+        for pass_ in pending_passes:
+            pass_["_id"] = str(pass_["_id"])
+            pass_["visit_date"] = pass_["visit_date"].isoformat()
+            pass_["submitted_at"] = pass_["submitted_at"].isoformat()
+
+        return jsonify({"success": True, "pendingPasses": pending_passes})
+    except Exception as e:
+        print(f"Error fetching pending visitor passes: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@admin_bp.route("/get_previous_visitor_passes", methods=["GET"])
+@login_required
+def get_previous_visitor_passes():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        previous_passes = list(db.visitor_passes.find({"status": {"$ne": "pending_admin"}}).sort("submitted_at", -1))
+
+        for pass_ in previous_passes:
+            pass_["_id"] = str(pass_["_id"])
+            pass_["visit_date"] = pass_["visit_date"].isoformat()
+            pass_["submitted_at"] = pass_["submitted_at"].isoformat()
+
+        return jsonify({"success": True, "previousPasses": previous_passes})
+    except Exception as e:
+        print(f"Error fetching previous visitor passes: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@admin_bp.route("/approve_visitor_pass/<pass_id>", methods=["POST"])
+@login_required
+def approve_visitor_pass(pass_id):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        result = db.visitor_passes.update_one(
+            {"_id": ObjectId(pass_id)},
+            {
+                "$set": {
+                    "status": "approved",
+                    "admin_approval": {
+                        "approved": True,
+                        "timestamp": datetime.utcnow()
+                    }
+                }
+            }
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"success": True, "message": "Visitor pass approved successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to approve visitor pass"}), 400
+    except Exception as e:
+        print(f"Error approving visitor pass: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@admin_bp.route("/reject_visitor_pass/<pass_id>", methods=["POST"])
+@login_required
+def reject_visitor_pass(pass_id):
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        result = db.visitor_passes.update_one(
+            {"_id": ObjectId(pass_id)},
+            {
+                "$set": {
+                    "status": "rejected",
+                    "admin_approval": {
+                        "approved": False,
+                        "timestamp": datetime.utcnow()
+                    }
+                }
+            }
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"success": True, "message": "Visitor pass rejected successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to reject visitor pass"}), 400
+    except Exception as e:
+        print(f"Error rejecting visitor pass: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500

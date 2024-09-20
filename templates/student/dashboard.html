@@ -1,4 +1,116 @@
-<div class="tab-pane fade" id="dashboard" role="tabpanel">
+<div class="tab-pane fade show active" id="dashboard" role="tabpanel">
     <h2>Dashboard</h2>
-    <!-- Add dashboard content here -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Room Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Room Number:</strong> <span id="room-number"></span></p>
+                    <p><strong>Block:</strong> <span id="block-name"></span></p>
+                    <p><strong>Roommates:</strong></p>
+                    <ul id="roommates-list"></ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Upcoming Payments</h5>
+                </div>
+                <div class="card-body">
+                    <ul id="upcoming-payments-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Today's Meal Plan</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Breakfast:</strong> <span id="breakfast-menu"></span></p>
+                    <p><strong>Lunch:</strong> <span id="lunch-menu"></span></p>
+                    <p><strong>Dinner:</strong> <span id="dinner-menu"></span></p>
+                    <p><strong>Snack:</strong> <span id="snack-menu"></span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Notifications</h5>
+                </div>
+                <div class="card-body">
+                    <ul id="notifications-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    // Load room information
+    $.get('/student/get_room_info', function(response) {
+        if (response.success) {
+            $('#room-number').text(response.room_number);
+            $('#block-name').text(response.block_name);
+            const roommatesList = $('#roommates-list');
+            roommatesList.empty();
+            response.roommates.forEach(function(roommate) {
+                roommatesList.append(`<li>${roommate}</li>`);
+            });
+        }
+    });
+
+    // Load upcoming payments
+    $.get('/student/get_fee_info', function(response) {
+        if (response.success) {
+            const upcomingPaymentsList = $('#upcoming-payments-list');
+            upcomingPaymentsList.empty();
+            response.upcoming_payments.slice(0, 3).forEach(function(payment) {
+                upcomingPaymentsList.append(`
+                    <li>
+                        ${payment.description} - ₹${payment.amount}
+                        <br>
+                        <small>Due: ${new Date(payment.dueDate).toLocaleDateString()}</small>
+                    </li>
+                `);
+            });
+        }
+    });
+
+    // Load today's meal plan
+    $.get('/admin/get_meal_plan', function(response) {
+        if (response.success) {
+            const today = new Date().toLocaleDateString('en-US', { weekday: 'lowercase' });
+            const todayMeals = response.meal_plan[today];
+            $('#breakfast-menu').text(todayMeals.breakfast);
+            $('#lunch-menu').text(todayMeals.lunch);
+            $('#dinner-menu').text(todayMeals.dinner);
+            $('#snack-menu').text(todayMeals.snack);
+        }
+    });
+
+    // Load recent notifications
+    $.get('/student/get_notices', function(response) {
+        if (response.success) {
+            const notificationsList = $('#notifications-list');
+            notificationsList.empty();
+            response.notices.slice(0, 5).forEach(function(notice) {
+                notificationsList.append(`
+                    <li>
+                        ${notice.title}
+                        <br>
+                        <small>${new Date(notice.posted_date).toLocaleString()}</small>
+                    </li>
+                `);
+            });
+        }
+    });
+});
+</script>

@@ -1,4 +1,158 @@
-<div class="tab-pane fade" id="visitors">
-    <h3>Visitors</h3>
-    <!-- Add visitors content -->
+<div class="tab-pane fade" id="visitors" role="tabpanel">
+    <ul class="nav nav-tabs mb-3" id="visitorsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="true">Pending Requests</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="previous-tab" data-bs-toggle="tab" data-bs-target="#previous" type="button" role="tab" aria-controls="previous" aria-selected="false">Previous Visitors</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="visitorsTabsContent">
+        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+            <h2>Pending Visitor Requests</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Visitor Name</th>
+                        <th>Relation</th>
+                        <th>Visit Date</th>
+                        <th>Visit Time</th>
+                        <th>Purpose</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="pending-visitor-requests-list">
+                    <!-- Pending visitor requests will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="tab-pane fade" id="previous" role="tabpanel" aria-labelledby="previous-tab">
+            <h2>Previous Visitors</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Visitor Name</th>
+                        <th>Relation</th>
+                        <th>Visit Date</th>
+                        <th>Visit Time</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="previous-visitor-requests-list">
+                    <!-- Previous visitor requests will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    // Load pending visitor requests
+    loadPendingVisitorRequests();
+    // Load previous visitor requests
+    loadPreviousVisitorRequests();
+});
+
+function loadPendingVisitorRequests() {
+    $.ajax({
+        url: "/parent/get_pending_visitor_passes",
+        type: "GET",
+        success: function(response) {
+            if (response.success) {
+                let html = "";
+                response.pendingPasses.forEach(function(pass) {
+                    html += `
+                        <tr>
+                            <td>${pass.visitor_name}</td>
+                            <td>${pass.relation}</td>
+                            <td>${new Date(pass.visit_date).toLocaleDateString()}</td>
+                            <td>${pass.visit_time}</td>
+                            <td>${pass.purpose}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="approveVisitorPass('${pass._id}')">Approve</button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectVisitorPass('${pass._id}')">Reject</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                $("#pending-visitor-requests-list").html(html);
+            } else {
+                alert("Error loading pending visitor requests: " + response.message);
+            }
+        },
+        error: function() {
+            alert("Error loading pending visitor requests");
+        }
+    });
+}
+
+function loadPreviousVisitorRequests() {
+    $.ajax({
+        url: "/parent/get_previous_visitor_passes",
+        type: "GET",
+        success: function(response) {
+            if (response.success) {
+                let html = "";
+                response.previousPasses.forEach(function(pass) {
+                    html += `
+                        <tr>
+                            <td>${pass.visitor_name}</td>
+                            <td>${pass.relation}</td>
+                            <td>${new Date(pass.visit_date).toLocaleDateString()}</td>
+                            <td>${pass.visit_time}</td>
+                            <td>${pass.purpose}</td>
+                            <td>${pass.status}</td>
+                        </tr>
+                    `;
+                });
+                $("#previous-visitor-requests-list").html(html);
+            } else {
+                alert("Error loading previous visitor requests: " + response.message);
+            }
+        },
+        error: function() {
+            alert("Error loading previous visitor requests");
+        }
+    });
+}
+
+function approveVisitorPass(passId) {
+    $.ajax({
+        url: `/parent/approve_visitor_pass/${passId}`,
+        type: "POST",
+        success: function(response) {
+            if (response.success) {
+                alert("Visitor pass approved successfully");
+                loadPendingVisitorRequests();
+                loadPreviousVisitorRequests();
+            } else {
+                alert("Error approving visitor pass: " + response.message);
+            }
+        },
+        error: function() {
+            alert("Error approving visitor pass");
+        }
+    });
+}
+
+function rejectVisitorPass(passId) {
+    $.ajax({
+        url: `/parent/reject_visitor_pass/${passId}`,
+        type: "POST",
+        success: function(response) {
+            if (response.success) {
+                alert("Visitor pass rejected successfully");
+                loadPendingVisitorRequests();
+                loadPreviousVisitorRequests();
+            } else {
+                alert("Error rejecting visitor pass: " + response.message);
+            }
+        },
+        error: function() {
+            alert("Error rejecting visitor pass");
+        }
+    });
+}
+</script>
