@@ -1,116 +1,114 @@
 <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
-    <h2>Dashboard</h2>
+    <h2>Student Dashboard</h2>
     <div class="row">
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">Room Information</h5>
-                </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Room Information</div>
                 <div class="card-body">
+                    <p><strong>Block:</strong> <span id="room-block"></span></p>
                     <p><strong>Room Number:</strong> <span id="room-number"></span></p>
-                    <p><strong>Block:</strong> <span id="block-name"></span></p>
-                    <p><strong>Roommates:</strong></p>
-                    <ul id="roommates-list"></ul>
                 </div>
             </div>
+            
         </div>
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">Upcoming Payments</h5>
-                </div>
+        <div class="col-md-6">
+            
+            <div class="card mb-3">
+                <div class="card-header">Attendance Summary (Last 30 days)</div>
                 <div class="card-body">
-                    <ul id="upcoming-payments-list"></ul>
+                    <p><strong>Attendance Percentage:</strong> <span id="attendance-percentage"></span>%</p>
+                    <p><strong>Days Present:</strong> <span id="days-present"></span></p>
                 </div>
             </div>
         </div>
     </div>
     <div class="row">
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">Today's Meal Plan</h5>
-                </div>
+        <div class="col-md-12">
+            <div class="card mb-3">
+                <div class="card-header">Recent Complaints</div>
                 <div class="card-body">
-                    <p><strong>Breakfast:</strong> <span id="breakfast-menu"></span></p>
-                    <p><strong>Lunch:</strong> <span id="lunch-menu"></span></p>
-                    <p><strong>Dinner:</strong> <span id="dinner-menu"></span></p>
-                    <p><strong>Snack:</strong> <span id="snack-menu"></span></p>
+                    <ul id="recent-complaints-list" class="list-group list-group-flush">
+                    </ul>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">Recent Notifications</h5>
-                </div>
+        <div class="col-md-12">
+            <div class="card mb-3">
+                <div class="card-header">Recent Notices</div>
                 <div class="card-body">
-                    <ul id="notifications-list"></ul>
+                    <ul id="recent-notices-list" class="list-group list-group-flush">
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
 $(document).ready(function() {
-    // Load room information
-    $.get('/student/get_room_info', function(response) {
-        if (response.success) {
-            $('#room-number').text(response.room_number);
-            $('#block-name').text(response.block_name);
-            const roommatesList = $('#roommates-list');
-            roommatesList.empty();
-            response.roommates.forEach(function(roommate) {
-                roommatesList.append(`<li>${roommate}</li>`);
-            });
-        }
-    });
+    function loadDashboardData() {
+        $.ajax({
+            url: '/student/dashboard_data',
+            type: 'GET',
+            success: function(response) {
+                // Update room information
+                $('#room-block').text(response.room_info.block);
+                $('#room-number').text(response.room_info.room_number);
 
-    // Load upcoming payments
-    $.get('/student/get_fee_info', function(response) {
-        if (response.success) {
-            const upcomingPaymentsList = $('#upcoming-payments-list');
-            upcomingPaymentsList.empty();
-            response.upcoming_payments.slice(0, 3).forEach(function(payment) {
-                upcomingPaymentsList.append(`
-                    <li>
-                        ${payment.description} - ₹${payment.amount}
-                        <br>
-                        <small>Due: ${new Date(payment.dueDate).toLocaleDateString()}</small>
-                    </li>
-                `);
-            });
-        }
-    });
+                // Update attendance summary
+                $('#attendance-percentage').text(response.attendance_summary.percentage);
+                $('#days-present').text(response.attendance_summary.days_present);
 
-    // Load today's meal plan
-    $.get('/admin/get_meal_plan', function(response) {
-        if (response.success) {
-            const today = new Date().toLocaleDateString('en-US', { weekday: 'lowercase' });
-            const todayMeals = response.meal_plan[today];
-            $('#breakfast-menu').text(todayMeals.breakfast);
-            $('#lunch-menu').text(todayMeals.lunch);
-            $('#dinner-menu').text(todayMeals.dinner);
-            $('#snack-menu').text(todayMeals.snack);
-        }
-    });
+                // Update upcoming payments
+                const upcomingPaymentsList = $('#upcoming-payments-list');
+                upcomingPaymentsList.empty();
+                if (response.upcoming_payments && response.upcoming_payments.length > 0) {
+                    response.upcoming_payments.forEach(function(payment) {
+                        upcomingPaymentsList.append(`
+                            <li class="list-group-item">
+                                <strong>${payment.description || 'Payment'}</strong><br>
+                                Amount: ₹${payment.amount}<br>
+                                Due Date: ${new Date(payment.due_date).toLocaleDateString()}
+                            </li>
+                        `);
+                    });
+                } else {
+                    upcomingPaymentsList.append('<li class="list-group-item">No upcoming payments</li>');
+                }
 
-    // Load recent notifications
-    $.get('/student/get_notices', function(response) {
-        if (response.success) {
-            const notificationsList = $('#notifications-list');
-            notificationsList.empty();
-            response.notices.slice(0, 5).forEach(function(notice) {
-                notificationsList.append(`
-                    <li>
-                        ${notice.title}
-                        <br>
-                        <small>${new Date(notice.posted_date).toLocaleString()}</small>
-                    </li>
-                `);
-            });
-        }
-    });
+                // Update recent complaints
+                const recentComplaintsList = $('#recent-complaints-list');
+                recentComplaintsList.empty();
+                response.recent_complaints.forEach(function(complaint) {
+                    recentComplaintsList.append(`
+                        <li class="list-group-item">
+                            <strong>${complaint.subject}</strong><br>
+                            Status: ${complaint.status}<br>
+                            Date: ${new Date(complaint.timestamp).toLocaleDateString()}
+                        </li>
+                    `);
+                });
+
+                // Update recent notices
+                const recentNoticesList = $('#recent-notices-list');
+                recentNoticesList.empty();
+                response.recent_notices.forEach(function(notice) {
+                    recentNoticesList.append(`
+                        <li class="list-group-item">
+                            <strong>${notice.title}</strong><br>
+                            Date: ${new Date(notice.posted_date).toLocaleDateString()}
+                        </li>
+                    `);
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading dashboard data:', error);
+                alert('Failed to load dashboard data. Please try again later.');
+            }
+        });
+    }
+
+    loadDashboardData();
 });
 </script>
