@@ -1,0 +1,123 @@
+<div class="tab-pane fade" id="attendance" role="tabpanel">
+    <h2>Attendance</h2>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mark Attendance</h5>
+                    <video id="attendanceVideo" width="100%" height="auto" autoplay></video>
+                    <canvas id="attendanceCanvas" style="display:none;"></canvas>
+                    <button id="markAttendanceButton" class="btn btn-primary mt-3">Mark Attendance</button>
+                    <div id="attendanceResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Today's Attendance</h5>
+                    <table class="table table-striped" id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Attendance records will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const attendanceVideo = document.getElementById('attendanceVideo');
+    const attendanceCanvas = document.getElementById('attendanceCanvas');
+    const markAttendanceButton = document.getElementById('markAttendanceButton');
+    const attendanceResult = document.getElementById('attendanceResult');
+
+    // Initialize attendance table
+    const attendanceTable = $('#attendanceTable').DataTable({
+        order: [[1, 'desc']]
+    });
+
+    // Start camera when the attendance tab is shown
+    $('a[href="#attendance"]').on('shown.bs.tab', function (e) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                attendanceVideo.srcObject = stream;
+            })
+            .catch(err => console.error('Error accessing camera:', err));
+    });
+
+    // Stop camera when leaving the attendance tab
+    $('a[href="#attendance"]').on('hidden.bs.tab', function (e) {
+        if (attendanceVideo.srcObject) {
+            attendanceVideo.srcObject.getTracks().forEach(track => track.stop());
+        }
+    });
+
+    markAttendanceButton.addEventListener('click', function() {
+        attendanceCanvas.width = attendanceVideo.videoWidth;
+        attendanceCanvas.height = attendanceVideo.videoHeight;
+        attendanceCanvas.getContext('2d').drawImage(attendanceVideo, 0, 0);
+        const imageData = attendanceCanvas.toDataURL('image/jpeg');
+
+        $.ajax({
+            url: '/staff/mark_attendance',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ image_data: imageData }),
+            success: function(response) {
+                if (response.success) {
+                    attendanceResult.innerHTML = `<div class="alert alert-success">Attendance marked for ${response.student_name}</div>`;
+                    // Add the new attendance record to the table
+                    attendanceTable.row.add([
+                        response.student_name,
+                        new Date().toLocaleTimeString()
+                    ]).draw(false);
+                } else {
+                    attendanceResult.innerHTML = `<div class="alert alert-danger">Failed to mark attendance: ${response.message}</div>`;
+                }
+            },
+            error: function(xhr, status, error) {
+                attendanceResult.innerHTML = `<div class="alert alert-danger">Error marking attendance: ${error}</div>`;
+            }
+        });
+    });
+
+    // Function to load today's attendance
+    function loadTodayAttendance() {
+        $.ajax({
+            url: '/staff/get_today_attendance',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    attendanceTable.clear();
+                    response.attendance.forEach(function(record) {
+                        attendanceTable.row.add([
+                            record.student_name,
+                            new Date(record.time).toLocaleTimeString()
+                        ]);
+                    });
+                    attendanceTable.draw();
+                } else {
+                    console.error('Failed to load today\'s attendance:', response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading today\'s attendance:', error);
+            }
+        });
+    }
+
+    // Load today's attendance when the tab is shown
+    $('a[href="#attendance"]').on('shown.bs.tab', function (e) {
+        loadTodayAttendance();
+    });
+});
+</script>

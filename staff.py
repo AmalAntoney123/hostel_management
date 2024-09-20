@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
+import numpy as np
+from face_recognition_utils import recognize_face
 from utils import login_required
 from datetime import datetime
-from config import db  # Add this import
+from config import db, users
 from bson import ObjectId
 
 staff_bp = Blueprint('staff', __name__)
@@ -11,7 +13,10 @@ staff_bp = Blueprint('staff', __name__)
 def staff_dashboard():
     if session["user"]["role"] != "staff":
         return redirect(url_for("index"))
-    return render_template("staff_dashboard.html")
+    user_id = ObjectId(session["user"]["_id"])
+    user = users.find_one({"_id": user_id})
+    return render_template("staff_dashboard.html",  user=user)
+
 
 @staff_bp.route("/staff/submit_complaint", methods=["POST"])
 @login_required
@@ -139,3 +144,46 @@ def get_staff_notices():
         notice["posted_date"] = notice["posted_date"].isoformat()
 
     return jsonify({"success": True, "notices": notices})
+
+@staff_bp.route("/staff/mark_attendance", methods=["POST"])
+@login_required
+def mark_attendance():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        image_data = request.json.get("image_data")
+
+        # Get all student face encodings
+        students = list(users.find({"role": "student", "face_encoding": {"$exists": True}}))
+        known_face_encodings = [np.array(student["face_encoding"]) for student in students]
+        student_ids = [str(student["_id"]) for student in students]
+
+        # Recognize the face
+        recognized_index = recognize_face(image_data, known_face_encodings)
+
+        if recognized_index is None:
+            return jsonify({"success": False, "message": "No matching student found"}), 404
+
+        recognized_student_id = student_ids[recognized_index]
+        recognized_student = users.find_one({"_id": ObjectId(recognized_student_id)})
+
+        # Mark attendance
+        attendance_record = {
+            "student_id": recognized_student_id,
+            "student_name": recognized_student["full_name"],
+            "date": datetime.utcnow().date().isoformat(),
+            "time": datetime.utcnow().time().isoformat(),
+            "marked_by": session["user"]["username"]
+        }
+
+        db.attendance.insert_one(attendance_record)
+
+        return jsonify({
+            "success": True,
+            "message": "Attendance marked successfully",
+            "student_name": recognized_student["full_name"]
+        })
+    except Exception as e:
+        print(f"Error marking attendance: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while marking attendance"}), 500

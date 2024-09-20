@@ -7,6 +7,7 @@ from flask import (
     request,
     jsonify,
 )
+from face_recognition_utils import process_face_image
 from utils import login_required
 from datetime import datetime, timedelta
 from config import db, users
@@ -31,7 +32,50 @@ def student_dashboard():
     active_tab = request.args.get('active_tab', 'dashboard')
     return render_template("student_dashboard.html", user=user, active_tab=active_tab)
 
+@student_bp.route("/student/capture_face", methods=["POST"])
+@login_required
+def capture_face():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
 
+    try:
+        image_data = request.json.get("image_data")
+        student_id = session["user"]["_id"]
+
+        # Process the image and extract face encoding
+        face_encoding = process_face_image(image_data)
+
+        if face_encoding is None:
+            return jsonify({"success": False, "message": "No face detected in the image"}), 400
+
+        # Save face encoding to the database
+        users.update_one(
+            {"_id": ObjectId(student_id)},
+            {"$set": {"face_encoding": face_encoding.tolist()}}
+        )
+
+        return jsonify({"success": True, "message": "Face captured successfully"})
+    except Exception as e:
+        print(f"Error capturing face: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while capturing the face"}), 500
+    
+@student_bp.route("/student/check_face_encoding", methods=["GET"])
+@login_required
+def check_face_encoding():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        student_id = session["user"]["_id"]
+        student = users.find_one({"_id": ObjectId(student_id)})
+
+        has_face_encoding = "face_encoding" in student and student["face_encoding"] is not None
+
+        return jsonify({"success": True, "has_face_encoding": has_face_encoding})
+    except Exception as e:
+        print(f"Error checking face encoding: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while checking face encoding"}), 500
+    
 @student_bp.route("/student/submit_complaint", methods=["POST"])
 @login_required
 def student_submit_complaint():
