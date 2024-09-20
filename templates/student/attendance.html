@@ -1,4 +1,123 @@
 <div class="tab-pane fade" id="attendance" role="tabpanel">
     <h2>Attendance</h2>
-    <!-- Add attendance viewing content here -->
+    <div id="attendanceCalendar">
+        <div id="calendarHeader">
+            <button id="prevMonth">&lt;</button>
+            <h3 id="monthYear"></h3>
+            <button id="nextMonth">&gt;</button>
+        </div>
+        <table id="calendarBody">
+            <thead>
+                <tr>
+                    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
+
+<style>
+#attendanceCalendar {
+    max-width: 800px;
+    margin: 0 auto;
+}
+#calendarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+#calendarBody {
+    width: 100%;
+    border-collapse: collapse;
+}
+#calendarBody th, #calendarBody td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+.present { background-color: #90EE90; }
+.absent { background-color: #FFB6C1; }
+.future { color: #999; } /* Light gray text for future dates */
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarBody = document.querySelector('#calendarBody tbody');
+    const monthYearElement = document.getElementById('monthYear');
+    let currentDate = new Date();
+    let displayedDate = new Date();
+
+    function renderCalendar(year, month) {
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const today = new Date();
+
+        monthYearElement.textContent = `${firstDay.toLocaleString('default', { month: 'long' })} ${year}`;
+
+        let date = 1;
+        let calendarHTML = '';
+
+        for (let i = 0; i < 6; i++) {
+            let row = '<tr>';
+            for (let j = 0; j < 7; j++) {
+                if (i === 0 && j < firstDay.getDay()) {
+                    row += '<td></td>';
+                } else if (date > daysInMonth) {
+                    row += '<td></td>';
+                } else {
+                    const cellDate = new Date(year, month, date);
+                    const isFuture = cellDate > today;
+                    row += `<td data-date="${year}-${(month + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}"
+                                ${isFuture ? 'class="future"' : ''}>${date}</td>`;
+                    date++;
+                }
+            }
+            row += '</tr>';
+            calendarHTML += row;
+            if (date > daysInMonth) break;
+        }
+
+        calendarBody.innerHTML = calendarHTML;
+        fetchAttendance(year, month);
+    }
+
+    function fetchAttendance(year, month) {
+        const startDate = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+        const today = new Date();
+        const endDate = today.getFullYear() === year && today.getMonth() === month
+            ? `${year}-${(month + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
+            : `${year}-${(month + 1).toString().padStart(2, '0')}-${new Date(year, month + 1, 0).getDate().toString().padStart(2, '0')}`;
+
+        fetch(`/student/get_attendance?start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    data.attendance.forEach(day => {
+                        const cell = document.querySelector(`td[data-date="${day.date}"]:not(.future)`);
+                        if (cell) {
+                            cell.classList.add(day.status === 'present' ? 'present' : 'absent');
+                        }
+                    });
+                } else {
+                    console.error('Failed to load attendance:', data.message);
+                }
+            })
+            .catch(error => console.error('Error loading attendance:', error));
+    }
+
+    renderCalendar(displayedDate.getFullYear(), displayedDate.getMonth());
+
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        displayedDate.setMonth(displayedDate.getMonth() - 1);
+        renderCalendar(displayedDate.getFullYear(), displayedDate.getMonth());
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        displayedDate.setMonth(displayedDate.getMonth() + 1);
+        renderCalendar(displayedDate.getFullYear(), displayedDate.getMonth());
+    });
+});
+</script>

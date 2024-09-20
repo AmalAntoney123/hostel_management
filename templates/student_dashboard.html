@@ -143,6 +143,9 @@
 
         <!-- Main content -->
         <div id="content" class="p-4">
+            <div id="page-loader" class="loader-overlay">
+                <div class="loader-spinner"></div>
+            </div>
             <button type="button" id="sidebarCollapse" class="btn btn-dark d-md-none mb-3">
                 <i class="bi bi-list"></i>
             </button>
@@ -240,22 +243,25 @@
 
     <!-- Your custom JS -->
     <script>
-        $(document).ready(function () {
-            // Sidebar toggle
+        document.addEventListener('DOMContentLoaded', function () {
+            const pageLoader = document.getElementById('page-loader');
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
             const sidebarCollapse = document.querySelectorAll('#sidebarCollapse');
-
+    
+            // Show loader
+            pageLoader.style.display = 'flex';
+    
+            // Hide loader when everything is loaded
+            window.addEventListener('load', function() {
+                pageLoader.style.display = 'none';
+            });
+    
             sidebarCollapse.forEach(button => {
                 button.addEventListener('click', function () {
                     sidebar.classList.toggle('collapsed');
                     content.classList.toggle('expanded');
                 });
-            });
-
-            // Initialize Owl Carousel
-            $(".owl-carousel").owlCarousel({
-                // Your Owl Carousel options here
             });
         });
     </script>

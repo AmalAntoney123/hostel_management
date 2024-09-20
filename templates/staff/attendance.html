@@ -1,32 +1,52 @@
 <div class="tab-pane fade" id="attendance" role="tabpanel">
     <h2>Attendance</h2>
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
+    <ul class="nav nav-tabs" id="attendanceTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="mark-attendance-tab" data-bs-toggle="tab" data-bs-target="#mark-attendance" type="button" role="tab" aria-controls="mark-attendance" aria-selected="true">Mark Attendance</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="view-attendance-tab" data-bs-toggle="tab" data-bs-target="#view-attendance" type="button" role="tab" aria-controls="view-attendance" aria-selected="false">View Attendance</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="attendanceTabsContent">
+        <div class="tab-pane fade show active" id="mark-attendance" role="tabpanel" aria-labelledby="mark-attendance-tab">
+            <div class="card mt-3">
                 <div class="card-body">
                     <h5 class="card-title">Mark Attendance</h5>
-                    <video id="attendanceVideo" width="100%" height="auto" autoplay></video>
+                    <video id="attendanceVideo" width="100%" height="auto" autoplay playsinline></video>
                     <canvas id="attendanceCanvas" style="display:none;"></canvas>
                     <button id="markAttendanceButton" class="btn btn-primary mt-3">Mark Attendance</button>
                     <div id="attendanceResult" class="mt-3"></div>
+                    <div id="confirmAttendance" class="mt-3" style="display:none;">
+                        <p>Confirm attendance for: <span id="studentName"></span></p>
+                        <button id="confirmAttendanceButton" class="btn btn-success">Confirm</button>
+                        <button id="cancelAttendanceButton" class="btn btn-danger">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
+        <div class="tab-pane fade" id="view-attendance" role="tabpanel" aria-labelledby="view-attendance-tab">
+            <div class="card mt-3">
                 <div class="card-body">
-                    <h5 class="card-title">Today's Attendance</h5>
-                    <table class="table table-striped" id="attendanceTable">
-                        <thead>
-                            <tr>
-                                <th>Student Name</th>
-                                <th>Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Attendance records will be populated here -->
-                        </tbody>
-                    </table>
+                    <h5 class="card-title">View Attendance</h5>
+                    <div class="form-group">
+                        <label for="attendanceDate">Select Date:</label>
+                        <input type="date" id="attendanceDate" class="form-control" max="{{ today_date }}">
+                    </div>
+                    <button id="loadAttendanceButton" class="btn btn-primary mt-3">Load Attendance</button>
+                    <div id="attendanceTableContainer" class="mt-3">
+                        <table class="table table-striped" id="attendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Attendance records will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -39,27 +59,51 @@ $(document).ready(function() {
     const attendanceCanvas = document.getElementById('attendanceCanvas');
     const markAttendanceButton = document.getElementById('markAttendanceButton');
     const attendanceResult = document.getElementById('attendanceResult');
+    const attendanceDatePicker = document.getElementById('attendanceDate');
+    const loadAttendanceButton = document.getElementById('loadAttendanceButton');
+
+    // Set max date for date picker to today
+    attendanceDatePicker.max = new Date().toISOString().split('T')[0];
 
     // Initialize attendance table
     const attendanceTable = $('#attendanceTable').DataTable({
-        order: [[1, 'desc']]
+        columns: [
+            { data: 'student_name' },
+            { data: 'status' }
+        ]
     });
 
-    // Start camera when the attendance tab is shown
-    $('a[href="#attendance"]').on('shown.bs.tab', function (e) {
+    let stream;
+
+    // Function to start the camera
+    function startCamera() {
         navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
+            .then(videoStream => {
+                stream = videoStream;
                 attendanceVideo.srcObject = stream;
+                attendanceVideo.play();
             })
             .catch(err => console.error('Error accessing camera:', err));
+    }
+
+    // Function to stop the camera
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+
+    // Start camera when the mark attendance tab is shown
+    document.getElementById('mark-attendance-tab').addEventListener('shown.bs.tab', function (e) {
+        startCamera();
     });
 
-    // Stop camera when leaving the attendance tab
-    $('a[href="#attendance"]').on('hidden.bs.tab', function (e) {
-        if (attendanceVideo.srcObject) {
-            attendanceVideo.srcObject.getTracks().forEach(track => track.stop());
-        }
+    // Stop camera when leaving the mark attendance tab
+    document.getElementById('mark-attendance-tab').addEventListener('hidden.bs.tab', function (e) {
+        stopCamera();
     });
+
+    let recognizedStudentId = null;
 
     markAttendanceButton.addEventListener('click', function() {
         attendanceCanvas.width = attendanceVideo.videoWidth;
@@ -74,50 +118,87 @@ $(document).ready(function() {
             data: JSON.stringify({ image_data: imageData }),
             success: function(response) {
                 if (response.success) {
-                    attendanceResult.innerHTML = `<div class="alert alert-success">Attendance marked for ${response.student_name}</div>`;
-                    // Add the new attendance record to the table
-                    attendanceTable.row.add([
-                        response.student_name,
-                        new Date().toLocaleTimeString()
-                    ]).draw(false);
+                    $('#studentName').text(response.student_name);
+                    $('#confirmAttendance').show();
+                    recognizedStudentId = response.student_id;
                 } else {
-                    attendanceResult.innerHTML = `<div class="alert alert-danger">Failed to mark attendance: ${response.message}</div>`;
+                    attendanceResult.innerHTML = `<div class="alert alert-danger">${response.message}</div>`;
                 }
             },
             error: function(xhr, status, error) {
-                attendanceResult.innerHTML = `<div class="alert alert-danger">Error marking attendance: ${error}</div>`;
+                attendanceResult.innerHTML = `<div class="alert alert-danger">Error recognizing student: ${error}</div>`;
             }
         });
     });
 
-    // Function to load today's attendance
-    function loadTodayAttendance() {
+    $('#confirmAttendanceButton').click(function() {
         $.ajax({
-            url: '/staff/get_today_attendance',
+            url: '/staff/confirm_attendance',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ 
+                student_id: recognizedStudentId,
+                student_name: $('#studentName').text()
+            }),
+            success: function(response) {
+                if (response.success) {
+                    attendanceResult.innerHTML = `<div class="alert alert-success">Attendance marked for ${response.student_name}</div>`;
+                } else {
+                    attendanceResult.innerHTML = `<div class="alert alert-danger">Failed to mark attendance: ${response.message}</div>`;
+                }
+                $('#confirmAttendance').hide();
+            },
+            error: function(xhr, status, error) {
+                attendanceResult.innerHTML = `<div class="alert alert-danger">Error marking attendance: ${error}</div>`;
+                $('#confirmAttendance').hide();
+            }
+        });
+    });
+
+    $('#cancelAttendanceButton').click(function() {
+        $('#confirmAttendance').hide();
+        attendanceResult.innerHTML = '';
+    });
+
+    // Function to load attendance for a specific date
+    function loadAttendance(date) {
+        $.ajax({
+            url: '/staff/get_attendance',
             method: 'GET',
+            data: { date: date },
             success: function(response) {
                 if (response.success) {
                     attendanceTable.clear();
                     response.attendance.forEach(function(record) {
-                        attendanceTable.row.add([
-                            record.student_name,
-                            new Date(record.time).toLocaleTimeString()
-                        ]);
+                        attendanceTable.row.add({
+                            student_name: record.student_name,
+                            status: record.status
+                        });
                     });
                     attendanceTable.draw();
                 } else {
-                    console.error('Failed to load today\'s attendance:', response.message);
+                    console.error('Failed to load attendance:', response.message);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error loading today\'s attendance:', error);
+                console.error('Error loading attendance:', error);
             }
         });
     }
 
-    // Load today's attendance when the tab is shown
-    $('a[href="#attendance"]').on('shown.bs.tab', function (e) {
-        loadTodayAttendance();
+    // Load attendance when the button is clicked
+    loadAttendanceButton.addEventListener('click', function() {
+        const selectedDate = attendanceDatePicker.value;
+        if (selectedDate) {
+            loadAttendance(selectedDate);
+        } else {
+            alert('Please select a date');
+        }
     });
+
+    // Start the camera initially if the mark attendance tab is active
+    if (document.getElementById('mark-attendance-tab').classList.contains('active')) {
+        startCamera();
+    }
 });
 </script>

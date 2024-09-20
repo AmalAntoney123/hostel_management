@@ -168,10 +168,47 @@ def mark_attendance():
         recognized_student_id = student_ids[recognized_index]
         recognized_student = users.find_one({"_id": ObjectId(recognized_student_id)})
 
+        # Check if attendance has already been marked for today
+        today = datetime.utcnow().date()
+        existing_attendance = db.attendance.find_one({
+            "student_id": recognized_student_id,
+            "date": today.isoformat()
+        })
+
+        if existing_attendance:
+            return jsonify({
+                "success": False,
+                "message": "Attendance already marked for today",
+                "student_name": recognized_student["full_name"]
+            })
+
+        # Return student info for confirmation
+        return jsonify({
+            "success": True,
+            "message": "Student recognized",
+            "student_name": recognized_student["full_name"],
+            "student_id": recognized_student_id
+        })
+
+    except Exception as e:
+        print(f"Error recognizing student: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while recognizing the student"}), 500
+
+@staff_bp.route("/staff/confirm_attendance", methods=["POST"])
+@login_required
+def confirm_attendance():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        student_id = data.get("student_id")
+        student_name = data.get("student_name")
+
         # Mark attendance
         attendance_record = {
-            "student_id": recognized_student_id,
-            "student_name": recognized_student["full_name"],
+            "student_id": student_id,
+            "student_name": student_name,
             "date": datetime.utcnow().date().isoformat(),
             "time": datetime.utcnow().time().isoformat(),
             "marked_by": session["user"]["username"]
@@ -182,8 +219,56 @@ def mark_attendance():
         return jsonify({
             "success": True,
             "message": "Attendance marked successfully",
-            "student_name": recognized_student["full_name"]
+            "student_name": student_name
         })
     except Exception as e:
         print(f"Error marking attendance: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while marking attendance"}), 500
+
+from flask import jsonify, request
+from datetime import datetime, timedelta
+
+@staff_bp.route("/staff/get_attendance", methods=["GET"])
+@login_required
+def get_attendance():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        date_str = request.args.get('date')
+        if not date_str:
+            return jsonify({"success": False, "message": "Date parameter is required"}), 400
+
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+        # Get all students
+        all_students = list(users.find({"role": "student"}, {"_id": 1, "username": 1}))
+
+        # Get attendance records for the selected date
+        attendance_records = list(db.attendance.find({"date": selected_date.isoformat()}))
+
+        # Create a dictionary of present students
+        present_students = {str(record["student_id"]): record for record in attendance_records}
+
+        # Prepare the attendance list
+        attendance_list = []
+        for student in all_students:
+            student_id = str(student["_id"])
+            if student_id in present_students:
+                status = "Present"
+            else:
+                status = "Absent"
+            
+            attendance_list.append({
+                "student_name": student["username"],
+                "status": status
+            })
+
+        return jsonify({
+            "success": True,
+            "attendance": attendance_list
+        })
+
+    except Exception as e:
+        print(f"Error fetching attendance: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while fetching attendance"}), 500

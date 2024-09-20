@@ -568,3 +568,47 @@ def submit_meal_feedback():
         return jsonify({"success": True, "message": "Feedback submitted successfully"})
     else:
         return jsonify({"success": False, "message": "Failed to submit feedback"}), 500
+    
+    
+@student_bp.route("/student/get_attendance", methods=["GET"])
+@login_required
+def get_student_attendance():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        student_id = session["user"]["_id"]
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        if not start_date or not end_date:
+            return jsonify({"success": False, "message": "Start and end dates are required"}), 400
+
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+        attendance_records = list(db.attendance.find({
+            "student_id": str(student_id),
+            "date": {
+                "$gte": start_date.isoformat(),
+                "$lte": end_date.isoformat()
+            }
+        }))
+
+        calendar_data = []
+        current_date = start_date
+        while current_date <= end_date:
+            is_present = any(record["date"] == current_date.isoformat() for record in attendance_records)
+            calendar_data.append({
+                "date": current_date.isoformat(),
+                "status": "present" if is_present else "absent"
+            })
+            current_date += timedelta(days=1)
+
+        return jsonify({
+            "success": True,
+            "attendance": calendar_data
+        })
+    except Exception as e:
+        print(f"Error fetching student attendance: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while fetching attendance"}), 500

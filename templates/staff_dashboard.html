@@ -135,6 +135,9 @@
 
         <!-- Main content -->
         <div id="content" class="p-4">
+            <div id="page-loader" class="loader-overlay">
+                <div class="loader-spinner"></div>
+            </div>
             <button type="button" id="sidebarCollapse" class="btn btn-dark d-md-none mb-3">
                 <i class="bi bi-list"></i>
             </button>
@@ -157,6 +160,29 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const pageLoader = document.getElementById('page-loader');
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const sidebarCollapse = document.querySelectorAll('#sidebarCollapse');
+    
+            // Show loader
+            pageLoader.style.display = 'flex';
+    
+            // Hide loader when everything is loaded
+            window.addEventListener('load', function() {
+                pageLoader.style.display = 'none';
+            });
+    
+            sidebarCollapse.forEach(button => {
+                button.addEventListener('click', function () {
+                    sidebar.classList.toggle('collapsed');
+                    content.classList.toggle('expanded');
+                });
+            });
+        });
+    </script>
     <!-- DataTables -->
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
