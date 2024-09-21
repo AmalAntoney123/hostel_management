@@ -1,7 +1,83 @@
 <div class="tab-pane fade show active" id="dashboard">
-    <h3>Student Information</h3>
-    <p><strong>Name:</strong> {{ student.full_name }}</p>
-    <p><strong>Email:</strong> {{ student.email }}</p>
-    <p><strong>Phone:</strong> {{ student.phone }}</p>
-    <!-- Add more dashboard content -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">Student Information</h3>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ student.full_name }}</p>
+                    <p><strong>Email:</strong> {{ student.email }}</p>
+                    <p><strong>Phone:</strong> {{ student.phone }}</p>
+                    <p><strong>Room Number:</strong> {{ student.room_number }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" type="button" onclick="location.href='#fees'">View Fees</button>
+                        <button class="btn btn-info" type="button" onclick="location.href='#attendance'">Check Attendance</button>
+                        <button class="btn btn-warning" type="button" onclick="location.href='#visitors'">Manage Visitors</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activities</h3>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush" id="recent-activities">
+                        <!-- Recent activities will be populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    // Function to load recent activities
+    function loadRecentActivities() {
+        // This is a placeholder. You'll need to implement an endpoint to fetch recent activities.
+        $.ajax({
+            url: '/parent/get_recent_activities',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    let html = "";
+                    response.activities.forEach(function(activity) {
+                        html += `
+                            <li class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">${activity.title}</h5>
+                                    <small>${new Date(activity.timestamp).toLocaleString()}</small>
+                                </div>
+                                <p class="mb-1">${activity.description}</p>
+                            </li>
+                        `;
+                    });
+                    $("#recent-activities").html(html);
+                } else {
+                    $("#recent-activities").html("<li class='list-group-item'>Failed to load recent activities.</li>");
+                }
+            },
+            error: function() {
+                $("#recent-activities").html("<li class='list-group-item'>An error occurred while loading recent activities.</li>");
+            }
+        });
+    }
+
+    // Load recent activities when the page loads
+    loadRecentActivities();
+});
+</script>
