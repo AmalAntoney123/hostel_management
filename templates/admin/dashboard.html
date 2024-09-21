@@ -1,6 +1,7 @@
-<div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+<div class="tab-pane fade" id="dashboard" role="tabpanel">
+
     <h2 class="mb-4">Dashboard</h2>
-    
+
     <!-- Key Metrics -->
     <div class="row mb-4" id="key-metrics">
         <!-- Key metrics will be populated here -->
@@ -40,12 +41,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-$(document).ready(function() {
-    // Load dashboard stats
-    $.get('/admin/get_dashboard_stats', function(response) {
-        if (response.success) {
-            const stats = response.stats;
-            $('#key-metrics').html(`
+    $(document).ready(function () {
+        // Load dashboard stats
+        $.get('/admin/get_dashboard_stats', function (response) {
+            if (response.success) {
+                const stats = response.stats;
+                $('#key-metrics').html(`
                 <div class="col-md-3 mb-3">
                     <div class="card text-white bg-primary">
                         <div class="card-body">
@@ -79,16 +80,16 @@ $(document).ready(function() {
                     </div>
                 </div>
             `);
-        }
-    });
+            }
+        });
 
-    // Load recent activities
-    $.get('/admin/get_recent_activities', function(response) {
-        if (response.success) {
-            const activities = response.activities;
-            let html = '';
-            activities.forEach(function(activity) {
-                html += `
+        // Load recent activities
+        $.get('/admin/get_recent_activities', function (response) {
+            if (response.success) {
+                const activities = response.activities;
+                let html = '';
+                activities.forEach(function (activity) {
+                    html += `
                     <li class="list-group-item">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">${activity.description}</h6>
@@ -96,60 +97,60 @@ $(document).ready(function() {
                         </div>
                     </li>
                 `;
-            });
-            $('#recent-activities').html(html);
-        }
-    });
+                });
+                $('#recent-activities').html(html);
+            }
+        });
 
-    // Load and render room occupancy chart
-    $.get('/admin/get_occupancy_chart_data', function(response) {
-        if (response.success) {
-            const ctx = document.getElementById('roomOccupancyChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'pie',
-                data: response.data,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Room Occupancy'
+        // Load and render room occupancy chart
+        $.get('/admin/get_occupancy_chart_data', function (response) {
+            if (response.success) {
+                const ctx = document.getElementById('roomOccupancyChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: response.data,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Room Occupancy'
+                            }
                         }
                     }
-                }
-            });
-        }
-    });
+                });
+            }
+        });
 
-    // Load and render fee collection chart
-    $.get('/admin/get_fee_collection_chart_data', function(response) {
-        if (response.success) {
-            const ctx = document.getElementById('feeCollectionChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: response.data,
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
+        // Load and render fee collection chart
+        $.get('/admin/get_fee_collection_chart_data', function (response) {
+            if (response.success) {
+                const ctx = document.getElementById('feeCollectionChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: response.data,
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
                         },
-                        title: {
-                            display: true,
-                            text: 'Monthly Fee Collection'
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Monthly Fee Collection'
+                            }
                         }
                     }
-                }
-            });
-        }
+                });
+            }
+        });
     });
-});
 </script>

@@ -4,6 +4,7 @@ from flask import (
     render_template,
     request,
     jsonify,
+    send_file,
     session,
     url_for,
 )
@@ -16,6 +17,11 @@ from bson import ObjectId, errors as bson_errors  # Import ObjectId for MongoDB
 import traceback
 from bson import ObjectId
 from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -987,16 +993,38 @@ def process_room_change_request():
         return jsonify({"success": False, "message": "Request not found"}), 404
 
     if action == "approve":
+        # Get the new room details
+        block = db.blocks.find_one({"_id": ObjectId(room_change_request["block_id"])})
+        if not block:
+            return jsonify({"success": False, "message": "Block not found"}), 404
+
+        floor = block["floors"][room_change_request["floor_index"]]
+        room_number = room_change_request["room_number"]
+
+        # Determine the new room type
+        new_room_type = None
+        for room_type in ["single", "double", "triple"]:
+            if room_number in floor[f"{room_type}AttachedRoomNumbers"] or room_number in floor[f"{room_type}NonAttachedRoomNumbers"]:
+                new_room_type = room_type
+                break
+
+        if not new_room_type:
+            return jsonify({"success": False, "message": "Invalid room number"}), 400
+
         # Update room assignment
         db.room_assignments.update_one(
             {"student_id": room_change_request["student_id"]},
             {
                 "$set": {
                     "block_id": room_change_request["block_id"],
+                    "block_name": block["name"],
                     "floor_index": room_change_request["floor_index"],
-                    "room_number": room_change_request["room_number"],
+                    "room_number": room_number,
+                    "room_type": new_room_type,
+                    "is_attached": room_number in floor[f"{new_room_type}AttachedRoomNumbers"]
                 }
             },
+            upsert=True
         )
 
     # Update request status
@@ -1636,3 +1664,157 @@ def reject_visitor_pass(pass_id):
     except Exception as e:
         print(f"Error rejecting visitor pass: {str(e)}")
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+    
+@admin_bp.route("/generate_report", methods=["POST"])
+@login_required
+def generate_report():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        report_type = data.get("report_type")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        print(f"Received request: report_type={report_type}, start_date={start_date}, end_date={end_date}")  # Debug log
+
+        if not all([report_type, start_date, end_date]):
+            missing_fields = [field for field in ["report_type", "start_date", "end_date"] if not data.get(field)]
+            error_message = f"Missing required fields: {', '.join(missing_fields)}"
+            print(error_message)  # Debug log
+            return jsonify({"success": False, "message": error_message}), 400
+
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError as e:
+            error_message = f"Invalid date format: {str(e)}"
+            print(error_message)  # Debug log
+            return jsonify({"success": False, "message": error_message}), 400
+
+        if report_type == "attendance":
+            data = generate_attendance_report(start_date, end_date)
+        elif report_type == "visitor_passes":
+            data = generate_visitor_passes_report(start_date, end_date)
+        elif report_type == "complaints":
+            data = generate_complaints_report(start_date, end_date)
+        elif report_type == "meal_feedback":
+            data = generate_meal_feedback_report(start_date, end_date)
+        else:
+            return jsonify({"success": False, "message": "Invalid report type"}), 400
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        title = f"{report_type.capitalize()} Report"
+        elements.append(Paragraph(title, styles['Heading1']))
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(f"From: {start_date.strftime('%Y-%m-%d')} To: {end_date.strftime('%Y-%m-%d')}", styles['Normal']))
+        elements.append(Spacer(1, 12))
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        elements.append(table)
+        doc.build(elements)
+
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f"{report_type}_report.pdf", mimetype='application/pdf')
+
+    except Exception as e:
+        error_message = f"Error generating report: {str(e)}"
+        print(error_message)  # Debug log
+        print(traceback.format_exc())  # Print the full traceback
+        return jsonify({"success": False, "message": error_message}), 500
+
+
+def generate_attendance_report(start_date, end_date):
+    attendance_records = list(db.attendance.find({
+        "date": {"$gte": start_date.isoformat(), "$lte": end_date.isoformat()}
+    }).sort("date", 1))
+
+    data = [["Date", "Student Name", "Status"]]
+    for record in attendance_records:
+        data.append([
+            record["date"],
+            record["student_name"],
+            "Present"
+        ])
+
+    return data
+
+def generate_visitor_passes_report(start_date, end_date):
+    visitor_passes = list(db.visitor_passes.find({
+        "visit_date": {"$gte": start_date.isoformat(), "$lte": end_date.isoformat()}
+    }).sort("visit_date", 1))
+
+    data = [["Visit Date", "Student Name", "Visitor Name", "Status"]]
+    for pass_ in visitor_passes:
+        data.append([
+            pass_["visit_date"],
+            pass_["student_name"],
+            pass_["visitor_name"],
+            pass_["status"]
+        ])
+
+    return data
+
+def generate_complaints_report(start_date, end_date):
+    try:
+        complaints = list(db.complaints.find({
+            "timestamp": {"$gte": start_date, "$lte": end_date}
+        }).sort("timestamp", 1))
+
+        data = [["Date", "Student Name", "Subject", "Status"]]
+        for complaint in complaints:
+            data.append([
+                complaint["timestamp"].strftime("%Y-%m-%d"),
+                complaint.get("student_name", "N/A"),
+                complaint.get("subject", "N/A"),
+                complaint.get("status", "N/A")
+            ])
+
+        return data
+    except Exception as e:
+        print(f"Error generating complaints report: {str(e)}")
+        print(traceback.format_exc())
+        raise
+
+def generate_meal_feedback_report(start_date, end_date):
+    try:
+        feedback = list(db.meal_feedback.find({
+            "submitted_at": {"$gte": start_date, "$lte": end_date}
+        }).sort("submitted_at", 1))
+
+        data = [["Date", "Meal", "Rating", "Comment"]]
+        for item in feedback:
+            data.append([
+                item["submitted_at"].strftime("%Y-%m-%d"),
+                item.get("meal", "N/A"),
+                str(item.get("rating", "N/A")),
+                item.get("comment", "N/A")
+            ])
+
+        return data
+    except Exception as e:
+        print(f"Error generating meal feedback report: {str(e)}")
+        print(traceback.format_exc())
+        raise
