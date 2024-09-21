@@ -27,8 +27,8 @@ A comprehensive web-based solution for managing hostel operations efficiently, f
 
 1. Clone the repository:
    ```
-   git clone https://github.com/amalantoney123/hostel-management-system.git
-   cd hostel-management-system
+   git clone https://github.com/amalantoney123/hostel-management.git
+   cd hostel-management
    ```
 
 2. Create and activate a virtual environment:
