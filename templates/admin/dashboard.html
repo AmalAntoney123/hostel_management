@@ -2,39 +2,8 @@
     <h2 class="mb-4">Dashboard</h2>
     
     <!-- Key Metrics -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <h5 class="card-title">Total Students</h5>
-                    <p class="card-text display-4">250</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <h5 class="card-title">Rooms Occupied</h5>
-                    <p class="card-text display-4">85%</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-warning">
-                <div class="card-body">
-                    <h5 class="card-title">Pending Fees</h5>
-                    <p class="card-text display-4">$12,500</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-danger">
-                <div class="card-body">
-                    <h5 class="card-title">Open Complaints</h5>
-                    <p class="card-text display-4">15</p>
-                </div>
-            </div>
-        </div>
+    <div class="row mb-4" id="key-metrics">
+        <!-- Key metrics will be populated here -->
     </div>
 
     <!-- Charts -->
@@ -61,50 +30,126 @@
     <div class="card">
         <div class="card-body">
             <h5 class="card-title">Recent Activities</h5>
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item">New student registered: John Doe</li>
-                <li class="list-group-item">Room 201 maintenance request submitted</li>
-                <li class="list-group-item">Monthly fee collected from 50 students</li>
-                <li class="list-group-item">Visitor pass issued for Room 305</li>
-                <li class="list-group-item">Inventory updated: 10 new chairs added</li>
+            <ul class="list-group list-group-flush" id="recent-activities">
+                <!-- Recent activities will be populated here -->
             </ul>
         </div>
     </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Room Occupancy Chart
-    const roomOccupancyCtx = document.getElementById('roomOccupancyChart').getContext('2d');
-    new Chart(roomOccupancyCtx, {
-        type: 'pie',
-        data: {
-            labels: ['Occupied', 'Vacant'],
-            datasets: [{
-                data: [85, 15],
-                backgroundColor: ['#28a745', '#dc3545']
-            }]
+$(document).ready(function() {
+    // Load dashboard stats
+    $.get('/admin/get_dashboard_stats', function(response) {
+        if (response.success) {
+            const stats = response.stats;
+            $('#key-metrics').html(`
+                <div class="col-md-3 mb-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Students</h5>
+                            <p class="card-text display-4">${stats.total_students}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5 class="card-title">Rooms Occupied</h5>
+                            <p class="card-text display-4">${stats.occupancy_rate}%</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">Pending Fees</h5>
+                            <p class="card-text display-4">₹${stats.pending_fees}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-white bg-danger">
+                        <div class="card-body">
+                            <h5 class="card-title">Open Complaints</h5>
+                            <p class="card-text display-4">${stats.open_complaints}</p>
+                        </div>
+                    </div>
+                </div>
+            `);
         }
     });
 
-    // Fee Collection Chart
-    const feeCollectionCtx = document.getElementById('feeCollectionChart').getContext('2d');
-    new Chart(feeCollectionCtx, {
-        type: 'bar',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{
-                label: 'Fee Collection',
-                data: [12000, 19000, 15000, 17000, 16000, 14000],
-                backgroundColor: '#007bff'
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
+    // Load recent activities
+    $.get('/admin/get_recent_activities', function(response) {
+        if (response.success) {
+            const activities = response.activities;
+            let html = '';
+            activities.forEach(function(activity) {
+                html += `
+                    <li class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${activity.description}</h6>
+                            <small>${new Date(activity.timestamp).toLocaleString()}</small>
+                        </div>
+                    </li>
+                `;
+            });
+            $('#recent-activities').html(html);
         }
     });
+
+    // Load and render room occupancy chart
+    $.get('/admin/get_occupancy_chart_data', function(response) {
+        if (response.success) {
+            const ctx = document.getElementById('roomOccupancyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: response.data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Room Occupancy'
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    // Load and render fee collection chart
+    $.get('/admin/get_fee_collection_chart_data', function(response) {
+        if (response.success) {
+            const ctx = document.getElementById('feeCollectionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: response.data,
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Monthly Fee Collection'
+                        }
+                    }
+                }
+            });
+        }
+    });
+});
 </script>

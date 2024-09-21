@@ -8,6 +8,7 @@ from payment import payment_bp
 from parent import parent_bp
 from student_dashboard import student_dashboard_bp
 from parent_dashboard import parent_dashboard_bp
+from admin_dashboard import admin_dashboard_bp
 import os
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
@@ -22,6 +23,7 @@ app.register_blueprint(parent_bp)
 app.register_blueprint(payment_bp)
 app.register_blueprint(student_dashboard_bp)
 app.register_blueprint(parent_dashboard_bp)
+app.register_blueprint(admin_dashboard_bp)
 
 @app.route("/")
 def index():
