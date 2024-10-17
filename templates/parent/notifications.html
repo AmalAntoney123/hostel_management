@@ -1,0 +1,47 @@
+<div class="tab-pane fade" id="notifications" role="tabpanel">
+    <h2>Notifications</h2>
+    <div id="parent-notice-board">
+        <!-- Notices will be populated here -->
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    function loadParentNotices() {
+        $.ajax({
+            url: '/parent/get_notices',
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    let noticeBoard = $('#parent-notice-board');
+                    noticeBoard.empty();
+                    response.notices.forEach(function(notice) {
+                        let noticeHtml = `
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">${notice.title}</h5>
+                                    <h6 class="card-subtitle mb-2 text-muted">Posted on: ${new Date(notice.posted_date).toLocaleString()}</h6>
+                                    <p class="card-text">${notice.content}</p>
+                                </div>
+                            </div>
+                        `;
+                        noticeBoard.append(noticeHtml);
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading notices:', error);
+            }
+        });
+    }
+
+    // Load notices when the notifications tab is shown
+    $('a[href="#notifications"]').on('shown.bs.tab', function (e) {
+        loadParentNotices();
+    });
+
+    // Initial load of notices
+    loadParentNotices();
+});
+</script>
+

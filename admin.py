@@ -22,6 +22,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
+from face_recognition_utils import recognize_face
+import numpy as np
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -1311,6 +1313,7 @@ def get_recent_notices():
     return jsonify({"success": True, "notices": notices})
 
 
+
 @admin_bp.route("/get_notice/<notice_id>", methods=["GET"])
 @login_required
 def get_notice(notice_id):
@@ -1438,12 +1441,6 @@ def get_meal_feedback():
 
     return jsonify({"success": True, "feedback": feedback})
 
-
-# ... (existing imports)
-from face_recognition_utils import recognize_face
-import numpy as np
-
-# ... (existing routes)
 
 @admin_bp.route("/mark_attendance", methods=["POST"])
 @login_required
@@ -1818,3 +1815,59 @@ def generate_meal_feedback_report(start_date, end_date):
         print(f"Error generating meal feedback report: {str(e)}")
         print(traceback.format_exc())
         raise
+    
+
+@admin_bp.route("/get_pending_mess_fee_reductions", methods=["GET"])
+@login_required
+def get_pending_mess_fee_reductions():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        reductions = list(db.mess_fee_reductions.find({"status": "pending"}))
+        
+        for reduction in reductions:
+            reduction["_id"] = str(reduction["_id"])
+            reduction["student_id"] = str(reduction["student_id"])
+            reduction["start_date"] = reduction["start_date"].isoformat()
+            reduction["end_date"] = reduction["end_date"].isoformat()
+            reduction["submitted_at"] = reduction["submitted_at"].isoformat()
+
+        return jsonify({"success": True, "reductions": reductions})
+    except Exception as e:
+        print(f"Error in get_pending_mess_fee_reductions: {str(e)}")
+        print(traceback.format_exc())  # Print the full traceback for debugging
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@admin_bp.route("/process_mess_fee_reduction", methods=["POST"])
+@login_required
+def process_mess_fee_reduction():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.json
+    reduction_id = data.get("reduction_id")
+    action = data.get("action")
+    reduced_amount = data.get("reduced_amount")
+
+    if not all([reduction_id, action]) or (action == "approve" and reduced_amount is None):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    update = {
+        "status": action,
+        "processed_at": datetime.utcnow(),
+        "processed_by": session["user"]["username"]
+    }
+
+    if action == "approve":
+        update["reduced_amount"] = float(reduced_amount)
+
+    result = db.mess_fee_reductions.update_one(
+        {"_id": ObjectId(reduction_id)},
+        {"$set": update}
+    )
+
+    if result.modified_count:
+        return jsonify({"success": True, "message": f"Mess fee reduction request {action}d successfully"})
+    else:
+        return jsonify({"success": False, "message": "Failed to process mess fee reduction request"}), 500

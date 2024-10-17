@@ -19,3 +19,4 @@ db = client[app_config.DB_NAME]
 users = db.users
 rooms = db.rooms
 fees = db.fees
+mess_fee_reductions = db.mess_fee_reductions

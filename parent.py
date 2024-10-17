@@ -376,3 +376,23 @@ def reject_visitor_pass(pass_id):
     except Exception as e:
         print(f"Error rejecting visitor pass: {str(e)}")
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@parent_bp.route("/parent/get_notices", methods=["GET"])
+@login_required
+def get_notices():
+    if session["user"]["role"] != "parent":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    notices = list(db.notices.find({
+        "$or": [
+            {"target": "all"},
+            {"target": "parents"},
+            {"target": "students_parents"}
+        ]
+    }).sort("posted_date", -1))
+
+    for notice in notices:
+        notice["_id"] = str(notice["_id"])
+        notice["posted_date"] = notice["posted_date"].isoformat()
+
+    return jsonify({"success": True, "notices": notices})

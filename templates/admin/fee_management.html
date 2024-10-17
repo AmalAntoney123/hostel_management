@@ -38,6 +38,27 @@
         <button type="submit" class="btn btn-primary">Update Fee Settings</button>
     </form>
 </div>
+<div class="card mb-4"></div>
+<div class="card-header">
+    <h5 class="mb-0">Pending Mess Fee Reduction Requests</h5>
+</div>
+<div class="card-body">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="pending-mess-fee-reductions-list">
+            <!-- Pending mess fee reductions will be populated here -->
+        </tbody>
+    </table>
+</div>
+</div>
 <script>
     $(document).ready(function () {
         function loadCurrentFeeSettings() {
@@ -68,34 +89,151 @@
             });
         }
 
+        function validateInput(input, regex, errorMessage) {
+            if (!regex.test(input.val())) {
+                input.addClass('is-invalid');
+                input.next('.invalid-feedback').remove();
+                input.after(`<div class="invalid-feedback">${errorMessage}</div>`);
+                return false;
+            } else {
+                input.removeClass('is-invalid');
+                input.next('.invalid-feedback').remove();
+                return true;
+            }
+        }
+
+        function setupValidation() {
+            $('#mess-fee-due-day').keyup(function () {
+                validateInput($(this), /^(0?[1-9]|[12][0-9]|3[01])$/, 'Please enter a valid day (1-31).');
+            });
+
+            $('#mess-fee').keyup(function () {
+                validateInput($(this), /^\d+(\.\d{1,2})?$/, 'Please enter a valid amount.');
+            });
+
+            $('#mess-fee-late-fee').keyup(function () {
+                validateInput($(this), /^\d+(\.\d{1,2})?$/, 'Please enter a valid amount.');
+            });
+
+            $('#rent-due-date').keyup(function () {
+                validateInput($(this), /^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD).');
+            });
+
+            $('#rent-fee').keyup(function () {
+                validateInput($(this), /^\d+(\.\d{1,2})?$/, 'Please enter a valid amount.');
+            });
+
+            $('#rent-fee-late-fee').keyup(function () {
+                validateInput($(this), /^\d+(\.\d{1,2})?$/, 'Please enter a valid amount.');
+            });
+        }
+
+        function setMinDateForRentDueDate() {
+            const today = new Date().toISOString().split('T')[0];
+            $('#rent-due-date').attr('min', today);
+        }
+
         $('#fee-settings-form').submit(function (e) {
             e.preventDefault();
+            if ($('.is-invalid').length === 0) {
+                $.ajax({
+                    url: '/admin/update_fee_settings',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        messFeeDay: parseInt($('#mess-fee-due-day').val()),
+                        messFee: parseFloat($('#mess-fee').val()),
+                        messFeeLateFee: parseFloat($('#mess-fee-late-fee').val()),
+                        rentDueDate: $('#rent-due-date').val(),
+                        rentFee: parseFloat($('#rent-fee').val()),
+                        rentFeeLateFee: parseFloat($('#rent-fee-late-fee').val())
+                    }),
+                    success: function (response) {
+                        if (response.success) {
+                            alert('Fee settings updated successfully');
+                            loadCurrentFeeSettings();
+                        } else {
+                            alert('Failed to update fee settings: ' + response.message);
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error occurred'));
+                    }
+                });
+            } else {
+                alert('Please correct the errors in the form before submitting.');
+            }
+        });
+
+        loadCurrentFeeSettings();
+        setupValidation();
+        setMinDateForRentDueDate();
+        function loadPendingMessFeeReductions() {
             $.ajax({
-                url: '/admin/update_fee_settings',
+                url: '/admin/get_pending_mess_fee_reductions',
+                method: 'GET',
+                success: function (response) {
+                    if (response.success) {
+                        const reductionsList = $('#pending-mess-fee-reductions-list');
+                        reductionsList.empty();
+                        response.reductions.forEach(function (reduction) {
+                            reductionsList.append(`
+                            <tr>
+                                <td>${reduction.student_name}</td>
+                                <td>${new Date(reduction.start_date).toLocaleDateString()}</td>
+                                <td>${new Date(reduction.end_date).toLocaleDateString()}</td>
+                                <td>${reduction.reason}</td>
+                                <td>
+                                    <input type="number" class="form-control reduced-amount" placeholder="Reduced Amount">
+                                    <button class="btn btn-success btn-sm approve-reduction" data-id="${reduction._id}">Approve</button>
+                                    <button class="btn btn-danger btn-sm reject-reduction" data-id="${reduction._id}">Reject</button>
+                                </td>
+                            </tr>
+                        `);
+                        });
+                    } else {
+                        alert('Failed to load pending mess fee reductions: ' + response.message);
+                    }
+                },
+                error: function () {
+                    alert('An error occurred while loading pending mess fee reductions');
+                }
+            });
+        }
+
+        $(document).on('click', '.approve-reduction, .reject-reduction', function () {
+            const action = $(this).hasClass('approve-reduction') ? 'approve' : 'reject';
+            const reductionId = $(this).data('id');
+            const reducedAmount = $(this).closest('tr').find('.reduced-amount').val();
+
+            if (action === 'approve' && !reducedAmount) {
+                alert('Please enter a reduced amount');
+                return;
+            }
+
+            $.ajax({
+                url: '/admin/process_mess_fee_reduction',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({
-                    messFeeDay: parseInt($('#mess-fee-due-day').val()),
-                    messFee: parseFloat($('#mess-fee').val()),
-                    messFeeLateFee: parseFloat($('#mess-fee-late-fee').val()),
-                    rentDueDate: $('#rent-due-date').val(),
-                    rentFee: parseFloat($('#rent-fee').val()),
-                    rentFeeLateFee: parseFloat($('#rent-fee-late-fee').val())
+                    reduction_id: reductionId,
+                    action: action,
+                    reduced_amount: reducedAmount
                 }),
                 success: function (response) {
                     if (response.success) {
-                        alert('Fee settings updated successfully');
-                        loadCurrentFeeSettings();
+                        alert(response.message);
+                        loadPendingMessFeeReductions();
                     } else {
-                        alert('Failed to update fee settings: ' + response.message);
+                        alert('Failed to process mess fee reduction: ' + response.message);
                     }
                 },
-                error: function (xhr) {
-                    alert('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error occurred'));
+                error: function () {
+                    alert('An error occurred while processing the mess fee reduction');
                 }
             });
         });
 
-        loadCurrentFeeSettings();
+        loadPendingMessFeeReductions();
     });
 </script>

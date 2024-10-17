@@ -17,6 +17,9 @@
         <li class="nav-item">
             <a class="nav-link" href="#past-payments-tab" data-toggle="tab">Past Payments</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#fee-reducation-tab" data-toggle="tab">Mess Fee Reduction</a>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -52,6 +55,46 @@
                     <!-- Past payments will be populated here -->
                 </tbody>
             </table>
+        </div>
+        <div class="tab-pane fade" id="fee-reducation-tab">
+            <h2 class="mt-3">Mess Fee Reduction</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <h3>Request Mess Fee Reduction</h3>
+                    <form id="mess-fee-reduction-form">
+                        <div class="form-group">
+                            <label for="start-date">Start Date</label>
+                            <input type="date" class="form-control" id="start-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end-date">End Date</label>
+                            <input type="date" class="form-control" id="end-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="fee-reason">Reason</label>
+                            <textarea class="form-control" id="fee-reason" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Submit Request</button>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <h3>Past Requests</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Reduced Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="past-reduction-requests">
+                            <!-- Past reduction requests will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -147,8 +190,39 @@ $(document).ready(function () {
         });
     }
 
+    function loadMessFeeReductions() {
+        $.ajax({
+            url: '/student/get_mess_fee_reductions',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const pastRequestsTable = $('#past-reduction-requests');
+                    pastRequestsTable.empty();
+                    response.reductions.forEach(function(reduction) {
+                        pastRequestsTable.append(`
+                            <tr>
+                                <td>${new Date(reduction.start_date).toLocaleDateString()}</td>
+                                <td>${new Date(reduction.end_date).toLocaleDateString()}</td>
+                                <td>${reduction.reason}</td>
+                                <td>${reduction.status}</td>
+                                <td>${reduction.reduced_amount ? '₹' + reduction.reduced_amount.toFixed(2) : 'N/A'}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    console.error('Failed to load mess fee reductions:', response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading mess fee reductions:', status, error);
+            }
+        });
+    }
+
+    // Load fee info, past payments, and mess fee reductions when the page loads
     loadFeeInfo();
     loadPastPayments();
+    loadMessFeeReductions();
 
     $(document).on('click', '.pay-now', function() {
         const button = $(this);
@@ -188,5 +262,58 @@ $(document).ready(function () {
             }
         });
     });
+
+    $('#mess-fee-reduction-form').submit(function(e) {
+        e.preventDefault();
+        const startDate = $('#start-date').val().trim();
+        const endDate = $('#end-date').val().trim();
+        const reason = $('#fee-reason').val().trim();
+
+        console.log("Form submitted:", { startDate, endDate, reason }); // Debug log
+
+        if (!startDate || !endDate || !reason) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        $.ajax({
+            url: '/student/submit_mess_fee_reduction',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate,
+                reason: reason
+            }),
+            success: function(response) {
+                if (response.success) {
+                    alert('Mess fee reduction request submitted successfully');
+                    $('#mess-fee-reduction-form')[0].reset();
+                    loadMessFeeReductions();
+                } else {
+                    alert('Failed to submit mess fee reduction request: ' + response.message);
+                }
+            },
+            error: function(jqXHR) {
+                let errorMessage = 'An error occurred while submitting the mess fee reduction request';
+                if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                    errorMessage = jqXHR.responseJSON.message;
+                }
+                alert(errorMessage);
+            }
+        });
+    });
+
+    // Use Bootstrap's tab event to load mess fee reductions
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        if ($(e.target).attr('href') === '#fee-reducation-tab') {
+            loadMessFeeReductions();
+        }
+    });
+
+    // Initial load of mess fee reductions if the tab is active on page load
+    if ($('#fee-reducation-tab').hasClass('active')) {
+        loadMessFeeReductions();
+    }
 });
 </script>

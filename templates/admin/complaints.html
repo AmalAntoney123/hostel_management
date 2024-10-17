@@ -57,7 +57,7 @@ $(document).ready(function() {
                         let newStatus = prompt("Enter new status (pending/in-progress/resolved):");
                         let adminComment = prompt("Enter admin comment:");
                         
-                        if (newStatus) {
+                        if (validateInputs(newStatus, adminComment)) {
                             updateComplaintStatus(complaintId, newStatus, adminComment);
                         }
                     });
@@ -67,6 +67,24 @@ $(document).ready(function() {
                 alert("Failed to load complaints: " + error);
             }
         });
+    }
+
+    function validateInputs(status, comment) {
+        const validStatuses = ["pending", "in-progress", "resolved"];
+        const statusRegex = new RegExp(`^(${validStatuses.join('|')})$`, 'i');
+        const commentRegex = /^[a-zA-Z0-9\s.,!?'-]{1,500}$/;
+
+        if (!statusRegex.test(status)) {
+            alert("Invalid status. Please enter 'pending', 'in-progress', or 'resolved'.");
+            return false;
+        }
+
+        if (!commentRegex.test(comment)) {
+            alert("Invalid comment. Please enter a valid comment (1-500 characters, alphanumeric and basic punctuation).");
+            return false;
+        }
+
+        return true;
     }
 
     function updateComplaintStatus(complaintId, newStatus, adminComment) {

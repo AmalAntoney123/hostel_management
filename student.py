@@ -433,6 +433,18 @@ def get_fee_info():
             # Calculate current month's mess fee
             current_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], 0)
             current_mess_fee_amount = fee_settings["messFee"]
+            
+            # Check for approved mess fee reductions
+            approved_reduction = db.mess_fee_reductions.find_one({
+                "student_id": ObjectId(student_id),
+                "status": "approve",
+                "start_date": {"$lte": current_mess_fee_due_date},
+                "end_date": {"$gte": current_mess_fee_due_date}
+            })
+
+            if approved_reduction:
+                current_mess_fee_amount -= approved_reduction["reduced_amount"]
+            
             current_mess_fee_late_amount = calculate_late_fee(current_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
             
             current_month_name = current_mess_fee_due_date.strftime("%B %Y")
@@ -457,11 +469,24 @@ def get_fee_info():
                 prev_description = f"Mess Fee {prev_month_name}"
                 
                 if not is_payment_made(student_id, prev_description, prev_mess_fee_due_date):
+                    prev_mess_fee_amount = fee_settings["messFee"]
+                    
+                    # Check for approved mess fee reductions
+                    approved_reduction = db.mess_fee_reductions.find_one({
+                        "student_id": ObjectId(student_id),
+                        "status": "approve",
+                        "start_date": {"$lte": prev_mess_fee_due_date},
+                        "end_date": {"$gte": prev_mess_fee_due_date}
+                    })
+                    
+                    if approved_reduction:
+                        prev_mess_fee_amount -= approved_reduction["reduced_amount"]
+                    
                     prev_mess_fee_late_amount = calculate_late_fee(prev_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
                     upcoming_payments.append({
                         "dueDate": prev_mess_fee_due_date.isoformat(),
                         "description": prev_description,
-                        "amount": fee_settings["messFee"],
+                        "amount": prev_mess_fee_amount,
                         "lateAmount": prev_mess_fee_late_amount,
                         "status": "Overdue"
                     })
@@ -502,7 +527,6 @@ def get_fee_info():
         print(f"Error in get_fee_info: {str(e)}")
         print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
-
 
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
     next_date = current_date.replace(day=1, tzinfo=timezone.utc) + relativedelta(months=months_ahead)
@@ -676,4 +700,80 @@ def get_visitor_passes():
         return jsonify({"success": True, "visitorPasses": visitor_passes})
     except Exception as e:
         print(f"Error fetching visitor passes: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+    
+@student_bp.route("/student/submit_mess_fee_reduction", methods=["POST"])
+@login_required
+def submit_mess_fee_reduction():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        reason = data.get("reason")
+
+        print(f"Received data: start_date={start_date}, end_date={end_date}, reason={reason}")  # Debug log
+
+        if not all([start_date, end_date, reason]):
+            missing_fields = [field for field in ["start_date", "end_date", "reason"] if not data.get(field)]
+            return jsonify({"success": False, "message": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+        try:
+            start_date = datetime.fromisoformat(start_date)
+            end_date = datetime.fromisoformat(end_date)
+        except ValueError as e:
+            return jsonify({"success": False, "message": f"Invalid date format: {str(e)}"}), 400
+
+        if end_date <= start_date:
+            return jsonify({"success": False, "message": "End date must be after start date"}), 400
+
+        if (end_date - start_date).days < 10:
+            return jsonify({"success": False, "message": "Leave must be for at least 10 days"}), 400
+
+        reduction_request = {
+            "student_id": ObjectId(session["user"]["_id"]),
+            "student_name": session["user"]["username"],
+            "start_date": start_date,
+            "end_date": end_date,
+            "reason": reason,
+            "status": "pending",
+            "submitted_at": datetime.utcnow()
+        }
+
+        result = db.mess_fee_reductions.insert_one(reduction_request)
+
+        if result.inserted_id:
+            return jsonify({"success": True, "message": "Mess fee reduction request submitted successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to submit mess fee reduction request"}), 500
+    except Exception as e:
+            print(f"Error in submit_mess_fee_reduction: {str(e)}")
+            print(traceback.format_exc())  # Print the full traceback for debugging
+            return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+from bson import ObjectId
+
+@student_bp.route("/student/get_mess_fee_reductions", methods=["GET"])
+@login_required
+def get_mess_fee_reductions():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        student_id = ObjectId(session["user"]["_id"])
+        reductions = list(db.mess_fee_reductions.find({"student_id": student_id}))
+        
+        for reduction in reductions:
+            reduction["_id"] = str(reduction["_id"])
+            reduction["student_id"] = str(reduction["student_id"])
+            reduction["start_date"] = reduction["start_date"].isoformat()
+            reduction["end_date"] = reduction["end_date"].isoformat()
+            reduction["submitted_at"] = reduction["submitted_at"].isoformat()
+
+        return jsonify({"success": True, "reductions": reductions})
+    except Exception as e:
+        print(f"Error in get_mess_fee_reductions: {str(e)}")
+        print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
