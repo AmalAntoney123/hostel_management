@@ -108,6 +108,12 @@
                         Meal Planning
                     </a>
                 </li>
+                <li>
+                    <a href="#security" class="nav-link text-white" data-bs-toggle="pill">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Security
+                    </a>
+                </li>
             </ul>
             <hr>
             <div class="dropdown">
@@ -150,6 +156,7 @@
                 {% include 'staff/notifications.html' %}
                 {% include 'staff/inventory.html' %}
                 {% include 'staff/meal_planning.html' %}
+                {% include 'staff/security.html' %}
             </div>
         </div>
     </div>
@@ -184,6 +191,86 @@
     <script src="{{ url_for('static', filename='dist/js/custom.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+
+    <script>
+    $(document).ready(function() {
+        let stream;
+        let recognitionInterval;
+        const securityVideo = document.getElementById('securityVideo');
+        const securityCanvas = document.getElementById('securityCanvas');
+        const securityStatus = document.getElementById('securityStatus');
+        const enableVoice = document.getElementById('enableVoice');
+        
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(videoStream => {
+                    stream = videoStream;
+                    securityVideo.srcObject = stream;
+                    securityVideo.play();
+                    startRecognition();
+                })
+                .catch(err => console.error('Error accessing camera:', err));
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+            }
+        }
+
+        function announceUser(message) {
+            if (enableVoice.checked) {
+                const speech = new SpeechSynthesisUtterance(message);
+                window.speechSynthesis.speak(speech);
+            }
+        }
+
+        function startRecognition() {
+            recognitionInterval = setInterval(() => {
+                securityCanvas.width = securityVideo.videoWidth;
+                securityCanvas.height = securityVideo.videoHeight;
+                securityCanvas.getContext('2d').drawImage(securityVideo, 0, 0);
+                const imageData = securityCanvas.toDataURL('image/jpeg');
+
+                $.ajax({
+                    url: '/staff/security_check',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ image_data: imageData }),
+                    success: function(response) {
+                        if (response.success) {
+                            securityStatus.className = 'alert alert-success mt-3';
+                            securityStatus.style.display = 'block';
+                            securityStatus.textContent = `Identified: ${response.person_name}`;
+                            announceUser(`Welcome, ${response.person_name}`);
+                        } else {
+                            securityStatus.className = 'alert alert-danger mt-3';
+                            securityStatus.style.display = 'block';
+                            securityStatus.textContent = 'Intruder Detected';
+                            announceUser('Intruder detected');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error in security check:', error);
+                    }
+                });
+            }, 5000); // Check every 5 seconds
+        }
+
+        // Start camera when the security tab is shown
+        $('a[href="#security"]').on('shown.bs.tab', function (e) {
+            startCamera();
+        });
+
+        // Stop camera when leaving the security tab
+        $('a[href="#security"]').on('hidden.bs.tab', function (e) {
+            stopCamera();
+        });
+    });
+    </script>
 
 </body>
 

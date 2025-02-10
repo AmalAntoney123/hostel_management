@@ -272,3 +272,39 @@ def get_attendance():
     except Exception as e:
         print(f"Error fetching attendance: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while fetching attendance"}), 500
+
+@staff_bp.route("/staff/security_check", methods=["POST"])
+@login_required
+def security_check():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        image_data = request.json.get("image_data")
+
+        # Get all user face encodings (both students and staff)
+        all_users = list(users.find({"face_encoding": {"$exists": True}}))
+        known_face_encodings = [np.array(user["face_encoding"]) for user in all_users]
+        user_ids = [str(user["_id"]) for user in all_users]
+
+        # Recognize the face
+        recognized_index = recognize_face(image_data, known_face_encodings)
+
+        if recognized_index is None:
+            return jsonify({
+                "success": False,
+                "message": "Unrecognized person detected"
+            })
+
+        recognized_user_id = user_ids[recognized_index]
+        recognized_user = users.find_one({"_id": ObjectId(recognized_user_id)})
+
+        return jsonify({
+            "success": True,
+            "person_name": recognized_user["full_name"],
+            "role": recognized_user["role"]
+        })
+
+    except Exception as e:
+        print(f"Error in security check: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred during security check"}), 500
