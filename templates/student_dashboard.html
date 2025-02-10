@@ -215,6 +215,32 @@
             });
         });
     </script>
+    <button id="chatbot-fab" class="btn btn-primary rounded-circle"
+        style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 50px; height: 50px; font-size: 24px; padding: 0;">
+        <i class="bi bi-chat-text" style="color: white;"></i>
+    </button>
+
+    <!-- Chatbot window -->
+    <div id="chatbot-window"
+        style="display: none; position: fixed; bottom: 100px; right: 20px; width: 350px; height: 470px; border: 1px solid #ccc; border-radius: 10px; background: white; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); z-index: 1000; overflow: hidden;">
+        <div
+            style="background: #007bff; color: white; padding: 10px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0;">HostelBot</h4>
+            <button id="close-chatbot"
+                style="background: none; border: none; color: white; font-size: 20px;">&times;</button>
+        </div>
+        <div id="chatbox"
+            style="padding: 10px; overflow-y: auto; height: 350px; display: flex; flex-direction: column; gap: 10px;">
+        </div>
+        <div id="typing-indicator" style="display: none; padding: 10px; font-style: italic; color: gray;">HostelBot is
+            typing...</div>
+        <div style="padding: 10px; border-top: 1px solid #ccc; display: flex; gap: 5px;">
+            <input type="text" id="user-input" placeholder="Type your message here..."
+                style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+            <button id="send-button"
+                style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px;">Send</button>
+        </div>
+    </div>
     <!-- Face Capture Modal -->
     <div class="modal fade" id="faceCaptureModal" tabindex="-1" aria-labelledby="faceCaptureModalLabel"
         aria-hidden="true">
@@ -248,21 +274,77 @@
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
             const sidebarCollapse = document.querySelectorAll('#sidebarCollapse');
-    
+
             // Show loader
             pageLoader.style.display = 'flex';
-    
+
             // Hide loader when everything is loaded
-            window.addEventListener('load', function() {
+            window.addEventListener('load', function () {
                 pageLoader.style.display = 'none';
             });
-    
+
             sidebarCollapse.forEach(button => {
                 button.addEventListener('click', function () {
                     sidebar.classList.toggle('collapsed');
                     content.classList.toggle('expanded');
                 });
             });
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const chatbotFab = document.getElementById('chatbot-fab');
+            const chatbotWindow = document.getElementById('chatbot-window');
+            const closeChatbot = document.getElementById('close-chatbot');
+            const chatbox = document.getElementById('chatbox');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const typingIndicator = document.getElementById('typing-indicator');
+
+            chatbotFab.addEventListener('click', function () {
+                chatbotWindow.style.display = 'block';
+            });
+
+            closeChatbot.addEventListener('click', function () {
+                chatbotWindow.style.display = 'none';
+            });
+
+            sendButton.addEventListener('click', function () {
+                const message = userInput.value.trim();
+                if (message) {
+                    appendMessage('You', message, 'user');
+                    userInput.value = '';
+                    typingIndicator.style.display = 'block';
+
+                    // Send message to chatbot API
+                    fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            typingIndicator.style.display = 'none';
+                            appendMessage('HostelBot', data.response, 'bot');
+                        })
+                        .catch(error => {
+                            typingIndicator.style.display = 'none';
+                            console.error('Error:', error);
+                        });
+                }
+            });
+
+            function appendMessage(sender, text, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.textContent = text;
+                messageDiv.style.padding = '10px';
+                messageDiv.style.borderRadius = '10px';
+                messageDiv.style.maxWidth = '80%';
+                messageDiv.style.wordWrap = 'break-word';
+                messageDiv.style.background = type === 'user' ? '#007bff' : '#e9ecef';
+                messageDiv.style.color = type === 'user' ? 'white' : 'black';
+                messageDiv.style.alignSelf = type === 'user' ? 'flex-end' : 'flex-start';
+                chatbox.appendChild(messageDiv);
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }
         });
     </script>
 </body>

@@ -37,28 +37,28 @@
         </div>
         <button type="submit" class="btn btn-primary">Update Fee Settings</button>
     </form>
+    <div class="card mb-4"></div>
+    <div class="card-header">
+        <h5 class="mb-0">Pending Mess Fee Reduction Requests</h5>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Reason</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="pending-mess-fee-reductions-list">
+                <!-- Pending mess fee reductions will be populated here -->
+            </tbody>
+        </table>
+    </div>
 </div>
-<div class="card mb-4"></div>
-<div class="card-header">
-    <h5 class="mb-0">Pending Mess Fee Reduction Requests</h5>
-</div>
-<div class="card-body">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Student Name</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Reason</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="pending-mess-fee-reductions-list">
-            <!-- Pending mess fee reductions will be populated here -->
-        </tbody>
-    </table>
-</div>
-</div>
+
 <script>
     $(document).ready(function () {
         function loadCurrentFeeSettings() {

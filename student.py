@@ -17,10 +17,33 @@ import calendar
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 from dateutil.tz import tzutc
+import requests  # Add this import for making API calls
+import os
+from dotenv import load_dotenv
+import google.generativeai as genai  # Import with alias
 
 
 student_bp = Blueprint("student", __name__)
 
+load_dotenv()  # Load environment variables from .env file
+
+# Configure the Google Generative AI client with the API key
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+
+# Initialize the generative model
+model = genai.GenerativeModel('gemini-pro')  # Adjust the model name as necessary
+
+# Predefined greetings
+greetings = {
+    "hi": "Hello! How can I assist you today?",
+    "hello": "Hi there! How can I help you?",
+    "good morning": "Good morning! How can I assist you today?",
+    "good afternoon": "Good afternoon! How can I help you?",
+    "good evening": "Good evening! How can I assist you today?",
+    "how are you": "I'm just a chatbot, but I'm here to help you! How can I assist you?",
+    "thanks": "You're welcome! If you have any more questions, feel free to ask.",
+    "thank you": "You're welcome! If you need anything else, just let me know."
+}
 
 @student_bp.route("/student_dashboard")
 @login_required
@@ -406,16 +429,21 @@ def get_fee_info():
 
     try:
         student_id = session["user"]["_id"]
+        print(f"Fetching fee info for student ID: {student_id}")  # Debug log
+
         student = users.find_one({"_id": ObjectId(student_id)})
         if not student:
+            print(f"Student not found for ID: {student_id}")  # Debug log
             return jsonify({"success": False, "message": "Student not found"}), 404
 
         fee_settings = db.fee_settings.find_one()
         if not fee_settings:
+            print("Fee settings not found")  # Debug log
             return jsonify({"success": False, "message": "Fee settings not found"}), 404
 
         join_date = student.get("join_date")
         if not join_date:
+            print(f"Join date not found for student ID: {student_id}")  # Debug log
             return jsonify({"success": False, "message": "Student join date not found"}), 404
 
         # Ensure join_date is timezone-aware
@@ -426,74 +454,56 @@ def get_fee_info():
             # If it's a string, parse it and make it timezone-aware
             join_date = datetime.fromisoformat(join_date).replace(tzinfo=timezone.utc)
 
+        print(f"Student join date: {join_date}")  # Debug log
+
         current_date = datetime.now(timezone.utc)
+        print(f"Current date: {current_date}")  # Debug log
+
         upcoming_payments = []
 
         if join_date <= current_date:
-            # Calculate current month's mess fee
-            current_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], 0)
-            current_mess_fee_amount = fee_settings["messFee"]
-            
-            # Check for approved mess fee reductions
-            approved_reduction = db.mess_fee_reductions.find_one({
+            approved_reductions = list(db.mess_fee_reductions.find({
                 "student_id": ObjectId(student_id),
-                "status": "approve",
-                "start_date": {"$lte": current_mess_fee_due_date},
-                "end_date": {"$gte": current_mess_fee_due_date}
-            })
+                "status": "approve"
+            }))
+            print(f"Approved reductions: {approved_reductions}")  # Debug log
 
-            if approved_reduction:
-                current_mess_fee_amount -= approved_reduction["reduced_amount"]
-            
-            current_mess_fee_late_amount = calculate_late_fee(current_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
-            
-            current_month_name = current_mess_fee_due_date.strftime("%B %Y")
-            current_description = f"Mess Fee {current_month_name}"
-            
-            if not is_payment_made(student_id, current_description, current_mess_fee_due_date):
-                upcoming_payments.append({
-                    "dueDate": current_mess_fee_due_date.isoformat(),
-                    "description": current_description,
-                    "amount": current_mess_fee_amount,
-                    "lateAmount": current_mess_fee_late_amount,
-                    "status": "Overdue" if current_date > current_mess_fee_due_date else "Pending"
-                })
-
-            # Check for unpaid mess fees from previous months
-            for i in range(1, 12):
-                prev_mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], -i)
-                if prev_mess_fee_due_date < join_date:
+            for i in range(0, 12):  # Check current month and up to 11 previous months
+                mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], -i)
+                if mess_fee_due_date < join_date:
                     break
-                
-                prev_month_name = prev_mess_fee_due_date.strftime("%B %Y")
-                prev_description = f"Mess Fee {prev_month_name}"
-                
-                if not is_payment_made(student_id, prev_description, prev_mess_fee_due_date):
-                    prev_mess_fee_amount = fee_settings["messFee"]
-                    
-                    # Check for approved mess fee reductions
-                    approved_reduction = db.mess_fee_reductions.find_one({
-                        "student_id": ObjectId(student_id),
-                        "status": "approve",
-                        "start_date": {"$lte": prev_mess_fee_due_date},
-                        "end_date": {"$gte": prev_mess_fee_due_date}
-                    })
-                    
-                    if approved_reduction:
-                        prev_mess_fee_amount -= approved_reduction["reduced_amount"]
-                    
-                    prev_mess_fee_late_amount = calculate_late_fee(prev_mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
+
+                mess_fee_amount = fee_settings["messFee"]
+                month_name = mess_fee_due_date.strftime("%B %Y")
+                description = f"Mess Fee {month_name}"
+
+                print(f"Checking mess fee for {month_name}")  # Debug log
+                print(f"Mess fee due date: {mess_fee_due_date}")  # Debug log
+
+                # Check for applicable reduction
+                applicable_reduction = next((r for r in approved_reductions if 
+                    r["end_date"].replace(tzinfo=timezone.utc).date() >= mess_fee_due_date.replace(day=1).date() and
+                    r["end_date"].replace(tzinfo=timezone.utc).date() <= (mess_fee_due_date.replace(day=1) + relativedelta(months=1) - relativedelta(days=1)).date()
+                ), None)
+                print(f"Applicable reduction found: {applicable_reduction}")  # Debug log
+
+                if applicable_reduction:
+                    print(f"Applying reduction for {month_name}: {applicable_reduction['reduced_amount']}")  # Debug log
+                    mess_fee_amount -= applicable_reduction["reduced_amount"]
+                    print(f"Reduced mess fee amount: {mess_fee_amount}")  # Debug log
+
+                if not is_payment_made(student_id, description, mess_fee_due_date):
+                    mess_fee_late_amount = calculate_late_fee(mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
                     upcoming_payments.append({
-                        "dueDate": prev_mess_fee_due_date.isoformat(),
-                        "description": prev_description,
-                        "amount": prev_mess_fee_amount,
-                        "lateAmount": prev_mess_fee_late_amount,
-                        "status": "Overdue"
+                        "dueDate": mess_fee_due_date.isoformat(),
+                        "description": description,
+                        "amount": mess_fee_amount,
+                        "lateAmount": mess_fee_late_amount,
+                        "status": "Overdue" if current_date > mess_fee_due_date else "Pending"
                     })
-                else:
-                    break
+                    print(f"Added upcoming payment for {month_name}: {mess_fee_amount}")  # Debug log
 
-            # Calculate hostel rent
+            # Calculate hostel rent (unchanged)
             rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year, tzinfo=timezone.utc)
             if rent_due_date < current_date:
                 rent_due_date = rent_due_date.replace(year=current_date.year + 1)
@@ -512,6 +522,7 @@ def get_fee_info():
                         "lateAmount": rent_fee_late_amount,
                         "status": "Overdue" if current_date > rent_due_date else "Pending"
                     })
+                    print(f"Added upcoming payment for rent: {rent_fee_amount}")  # Debug log
 
         fee_info = {
             "joinDate": join_date.isoformat(),
@@ -522,12 +533,13 @@ def get_fee_info():
             "upcomingPayments": upcoming_payments
         }
 
+        print(f"Final fee info: {fee_info}")  # Debug log
+
         return jsonify({"success": True, "feeInfo": fee_info})
     except Exception as e:
         print(f"Error in get_fee_info: {str(e)}")
         print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
-
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
     next_date = current_date.replace(day=1, tzinfo=timezone.utc) + relativedelta(months=months_ahead)
     next_date = next_date.replace(
@@ -777,3 +789,158 @@ def get_mess_fee_reductions():
         print(f"Error in get_mess_fee_reductions: {str(e)}")
         print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@student_bp.route("/chatbot", methods=["POST"])
+@login_required
+def chatbot():
+    data = request.json
+    user_message = data.get("message")
+    print(f"Received message: {user_message}")  # Debugging line
+
+    try:
+        # Use the model to generate a response
+        response = model.generate_response(user_message)  # Adjust this based on the library's API
+
+        # Assuming the response has a 'reply' field
+        reply = response.get("reply", "Sorry, I didn't understand that.")
+        print(f"Reply from API: {reply}")  # Debugging line
+        return jsonify({"reply": reply})
+    except Exception as e:
+        print(f"Exception occurred: {str(e)}")  # Log the exception
+        return jsonify({"reply": "An error occurred."}), 500
+
+# Example of a context for the chatbot
+class HostelManagementChatbot:
+    def __init__(self):
+        # Initialize the model
+        self.model = genai.GenerativeModel('gemini-pro')
+        
+        # Set up initial context
+        self.context = """
+        You are a friendly chatbot for a college hostel management website. Your role is to respond to questions related to hostel rules and regulations. 
+        Please provide accurate and concise answers to any inquiries about the hostel. 
+
+        I will provide some rules and regulations of the hostel. You should keep in mind the below rules and regulations while responding.
+
+        1. General Conduct
+Respect & Behavior: All residents must treat fellow residents, staff, and visitors with courtesy and respect. Harassment, discrimination, or any abusive behavior will not be tolerated.
+Noise Levels: Maintain low noise levels during designated quiet hours (e.g., 10:00 PM to 7:00 AM) to ensure a peaceful environment for everyone.
+Illegal Activities: Any illegal activities on hostel premises are strictly prohibited and will result in immediate action.
+2. Accommodation & Room Allocation
+Room Assignments: Rooms and beds are allocated based on availability. Requests for changes or special accommodations should be submitted in advance.
+Cleanliness: Residents are responsible for keeping their rooms and shared areas clean and orderly.
+Personal Belongings: Secure your personal belongings. The hostel is not liable for any loss or damage to personal property.
+3. Check-In and Check-Out
+Check-In: Check-in is available from [Specify Time]. A valid identity proof (e.g., government-issued ID) is required.
+Check-Out: Check-out must be completed by [Specify Time]. Late departures may incur additional charges unless prior arrangements have been made.
+Early/Late Requests: Requests for early check-in or late check-out should be communicated in advance and are subject to availability.
+4. Security and Safety
+Access Control: Residents must ensure that their rooms and common areas are securely locked. Unauthorized access to private or restricted areas is forbidden.
+Fire Safety: No open flames, candles, or other fire hazards are allowed inside rooms or common areas. Please familiarize yourself with the fire exit locations and emergency procedures.
+Inspections: Routine inspections may be conducted for safety and maintenance purposes with prior notice.
+5. Visitors Policy
+Visiting Hours: Visitors are allowed only during designated hours (e.g., between 10:00 AM and 8:00 PM). Overnight visitors are not permitted without prior written approval.
+Registration: All visitors must be registered at the reception upon entry.
+Guest Conduct: Residents are responsible for the behavior of their visitors. Any damage or disturbance caused by guests may result in penalties.
+6. Housekeeping and Maintenance
+Shared Areas: All residents must help keep common areas (e.g., kitchens, lounges, bathrooms) tidy.
+Reporting Issues: Any maintenance or safety issues should be promptly reported to hostel management.
+Damage & Repairs: Damage to hostel property must be reported immediately. Residents may be held financially responsible for any repairs needed due to negligence or misuse.
+7. Payment and Fees
+Rent and Fees: Payment of rent, security deposits, and any additional fees must be made as per the hostel’s payment schedule.
+Late Payments: Late payments may attract additional charges or penalties.
+Refunds: Refund policies for deposits or unused services should be clearly outlined and adhered to as per the hostel’s guidelines.
+8. Disciplinary Actions
+Rule Violations: Any violation of these rules may result in warnings, fines, suspension, or eviction, depending on the severity of the infraction.
+Incident Reporting: All incidents, including disputes or breaches of rules, should be reported immediately to hostel management. Serious issues may be reported to local authorities.
+       Rooms Available include single ,double and triple rooms,accomodation is only for staffs and students no couples allowed. 
+       the facilities the hostel contains are single,double,triple rooms, purifier for drinking water,students who are lactating mothers can be given a seperate room.
+
+       Here are the facilities available in a college hostel:
+
+Basic Facilities
+1. Rooms: Shared or single occupancy rooms with beds, mattresses, study tables, chairs, and cupboards.
+2. Bathrooms: Shared or attached bathrooms with showers, toilets, and sinks.
+3. Common Rooms: Lounges or common rooms with TVs, sofas, and tables for relaxation and socializing.
+
+Food and Beverage Facilities
+1. Mess: A dining hall that serves breakfast, lunch, and dinner.
+2. Canteen: A snack bar or canteen that offers snacks and beverages.
+3. Vending Machines: Machines that dispense snacks and drinks.
+
+Recreational Facilities
+1. Indoor Games: Facilities for indoor games like table tennis, carrom, or chess.
+2. TV Room: A room with a TV for relaxation and entertainment.
+3. Reading Room: A quiet room for reading and relaxation.
+
+Health and Wellness Facilities
+1. Medical Room: A room with basic medical facilities and a nurse or doctor on call.
+2. First Aid Kit: A kit with basic first aid supplies.
+
+Security and Safety Facilities
+1. CCTV Cameras: Cameras installed in common areas for security.
+2. Security Guards: Guards on duty 24/7 to ensure safety and security.
+3. Fire Safety Equipment: Equipment like fire extinguishers and smoke detectors.
+
+Other Facilities
+1. Laundry Facilities: Washing machines and dryers for laundry(Available for both staffs and students).
+2. Ironing Board: An ironing board and iron for pressing clothes.
+3. Visitor's Room: A room for visitors to wait or meet with hostel residents.
+       
+        When responding:
+        - Be friendly and conversational
+        - Keep responses concise and relevant to the user's question
+        - Avoid overwhelming users with too much information at 
+        - talk only about features which are available in hostel and remember this is a college hostel in kerala 
+        """
+
+        # Start a new chat
+        self.chat = self.model.start_chat(history=[])
+        self.chat.send_message(self.context)
+
+    def get_response(self, user_input):
+        try:
+            # Send user input to the Gemini API for processing
+            response = self.chat.send_message(f"""
+            User Query: {user_input}
+            
+            Provide a friendly and concise response. If the user asks for specific rules or information, respond accordingly.
+            """)
+            
+            # If no response from AI, use fallback
+            if not response.text:
+                return "I'm sorry, I didn't receive a valid response from the API."
+            
+            # Clean up the response to remove HTML tags if necessary
+            cleaned_response = self.clean_response(response.text)
+            return cleaned_response
+
+        except Exception as e:
+            print(f"Error in get_response: {str(e)}")  # For debugging
+            return "I apologize, but I'm having trouble processing your request."
+
+    def clean_response(self, response_text):
+        # Remove HTML tags if present
+        return response_text.replace("<br>", "\n").replace("&nbsp;", " ")  # Replace with newlines for plain text
+
+# Initialize the chatbot
+hostel_chatbot = HostelManagementChatbot()
+
+@student_bp.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    user_message = data.get('message', '')
+    
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+    
+    response = hostel_chatbot.get_response(user_message)
+    return jsonify({'response': response})
+
+# Example usage with Flask
+if __name__ == '__main__':
+    from flask import Flask
+    app = Flask(__name__)
+    app.register_blueprint(student_bp)
+
+    app.run(debug=True)
