@@ -15,16 +15,57 @@
     </table>
 
     <div class="mt-4">
-        <h3>Feedback</h3>
+        <h3>Meal Feedback</h3>
         <form id="meal-feedback-form">
             <div class="mb-3">
-                <label for="feedback-text" class="form-label">Your Feedback</label>
-                <textarea class="form-control" id="feedback-text" rows="3" required></textarea>
+                <label for="meal-select" class="form-label">Select Meal</label>
+                <select class="form-select" id="meal-select" required>
+                    <option value="">Choose a meal...</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Rating</label>
+                <div class="rating">
+                    <input type="radio" name="rating" value="5" id="rating5" required><label for="rating5">☆</label>
+                    <input type="radio" name="rating" value="4" id="rating4"><label for="rating4">☆</label>
+                    <input type="radio" name="rating" value="3" id="rating3"><label for="rating3">☆</label>
+                    <input type="radio" name="rating" value="2" id="rating2"><label for="rating2">☆</label>
+                    <input type="radio" name="rating" value="1" id="rating1"><label for="rating1">☆</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="feedback-text" class="form-label">Additional Comments</label>
+                <textarea class="form-control" id="feedback-text" rows="3"></textarea>
             </div>
             <button type="submit" class="btn btn-primary">Submit Feedback</button>
         </form>
     </div>
 </div>
+
+<style>
+.rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.rating input {
+    display: none;
+}
+
+.rating label {
+    cursor: pointer;
+    font-size: 30px;
+    color: #ddd;
+    margin: 0 5px;
+}
+
+.rating input:checked ~ label,
+.rating label:hover,
+.rating label:hover ~ label {
+    color: #ffd700;
+}
+</style>
 
 <script>
 $(document).ready(function() {
@@ -32,17 +73,28 @@ $(document).ready(function() {
         $.get('/admin/get_meal_plan', function(response) {
             if (response.success) {
                 const mealPlanTable = $('#meal-plan-table');
+                const mealSelect = $('#meal-select');
                 mealPlanTable.empty();
+                mealSelect.empty().append('<option value="">Choose a meal...</option>');
+                
                 for (const [day, meals] of Object.entries(response.meal_plan)) {
+                    const dayName = day.charAt(0).toUpperCase() + day.slice(1);
                     mealPlanTable.append(`
                         <tr>
-                            <td>${day.charAt(0).toUpperCase() + day.slice(1)}</td>
+                            <td>${dayName}</td>
                             <td>${meals.breakfast}</td>
                             <td>${meals.lunch}</td>
                             <td>${meals.dinner}</td>
                             <td>${meals.snack}</td>
                         </tr>
                     `);
+                    
+                    // Add meals to the select dropdown
+                    for (const [mealType, dish] of Object.entries(meals)) {
+                        if (dish) {
+                            mealSelect.append(`<option value="${dish}">${dayName} - ${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${dish}</option>`);
+                        }
+                    }
                 }
             }
         });
@@ -52,16 +104,29 @@ $(document).ready(function() {
 
     $('#meal-feedback-form').submit(function(e) {
         e.preventDefault();
-        const feedback = $('#feedback-text').val();
+        const meal = $('#meal-select').val();
+        const rating = $('input[name="rating"]:checked').val();
+        const comment = $('#feedback-text').val();
+        
+        if (!meal || !rating) {
+            alert('Please select a meal and provide a rating');
+            return;
+        }
         
         $.ajax({
             url: '/student/submit_meal_feedback',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ feedback: feedback }),
+            data: JSON.stringify({
+                meal: meal,
+                rating: parseInt(rating),
+                comment: comment
+            }),
             success: function(response) {
                 if (response.success) {
                     alert('Feedback submitted successfully');
+                    $('#meal-select').val('');
+                    $('input[name="rating"]').prop('checked', false);
                     $('#feedback-text').val('');
                 } else {
                     alert('Failed to submit feedback: ' + response.message);

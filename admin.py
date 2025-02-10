@@ -24,6 +24,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 from face_recognition_utils import recognize_face
 import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -1871,3 +1876,86 @@ def process_mess_fee_reduction():
         return jsonify({"success": True, "message": f"Mess fee reduction request {action}d successfully"})
     else:
         return jsonify({"success": False, "message": "Failed to process mess fee reduction request"}), 500
+    
+# Load and preprocess meal data
+def load_meal_data():
+    try:
+        df = pd.read_csv('meal_data.csv')
+        return df
+    except Exception as e:
+        print(f"Error loading meal data: {str(e)}")
+        return None
+
+def get_meal_recommendations(meal_type, vegetarian_only=False):
+    df = load_meal_data()
+    if df is None:
+        return []
+    
+    # Filter by meal type and vegetarian preference
+    filtered_df = df[df['meal_type'] == meal_type]
+    if vegetarian_only:
+        filtered_df = filtered_df[filtered_df['vegetarian'] == 1]
+    
+    if filtered_df.empty:
+        return []
+    
+    # Create feature matrix
+    features = ['calories', 'protein', 'carbs', 'popularity']
+    X = filtered_df[features]
+    
+    # Normalize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Calculate similarity scores
+    similarity = cosine_similarity(X_scaled)
+    
+    # Get recommendations (without duplicates)
+    recommendations = []
+    seen_dishes = set()
+    
+    # Sort by popularity first
+    sorted_df = filtered_df.sort_values('popularity', ascending=False)
+    
+    # Take top 5 popular dishes
+    for _, row in sorted_df.iterrows():
+        if len(recommendations) >= 5:
+            break
+            
+        if row['dish_name'] not in seen_dishes:
+            seen_dishes.add(row['dish_name'])
+            recommendations.append({
+                'dish': row['dish_name'],
+                'cuisine': row['cuisine'],
+                'calories': int(row['calories']),
+                'popularity': float(row['popularity'])
+            })
+    
+    return recommendations
+
+@admin_bp.route("/get_meal_recommendations", methods=["GET"])
+@login_required
+def get_meal_recommendations_route():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+    
+    meal_type = request.args.get('meal_type', 'breakfast')
+    vegetarian_only = request.args.get('vegetarian_only', 'false').lower() == 'true'
+    
+    try:
+        recommendations = get_meal_recommendations(meal_type, vegetarian_only)
+        # Convert numpy/pandas numeric types to Python native types
+        for rec in recommendations:
+            rec['calories'] = int(rec['calories'])  # Convert np.int64 to int
+            rec['popularity'] = float(rec['popularity'])  # Convert np.float64 to float
+            
+        return jsonify({
+            "success": True,
+            "recommendations": recommendations
+        })
+    except Exception as e:
+        print(f"Error getting meal recommendations: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "Error generating recommendations"
+        }), 500

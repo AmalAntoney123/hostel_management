@@ -1,0 +1,57 @@
+meal_type,dish_name,cuisine,vegetarian,calories,protein,carbs,popularity
+breakfast,Idli Sambar,South Indian,1,215,8,40,4.5
+breakfast,Oatmeal with Fruits,Continental,1,289,6,45,4.2
+breakfast,Poha,North Indian,1,270,9,35,4.3
+breakfast,Masala Dosa,South Indian,1,250,8,45,4.8
+breakfast,Pancakes with Maple Syrup,Continental,1,350,7,60,4.6
+breakfast,Eggs Benedict,Continental,0,320,16,25,4.7
+breakfast,Aloo Paratha,North Indian,1,290,8,48,4.4
+breakfast,Upma,South Indian,1,230,7,42,4.1
+breakfast,French Toast,Continental,0,280,10,38,4.5
+breakfast,Chole Bhature,North Indian,1,450,14,65,4.7
+breakfast,Avocado Toast,Continental,1,260,9,30,4.4
+breakfast,Medu Vada,South Indian,1,240,8,36,4.3
+lunch,Chicken Biryani,Indian,0,650,25,85,4.8
+lunch,Vegetable Pulao,Indian,1,450,12,65,4.1
+lunch,Dal Makhani with Roti,North Indian,1,550,18,75,4.6
+lunch,Grilled Chicken Salad,Continental,0,320,28,12,4.3
+lunch,Pasta Primavera,Italian,1,420,14,68,4.4
+lunch,Sushi Roll Combo,Japanese,0,480,22,70,4.7
+lunch,Thai Green Curry with Rice,Thai,0,580,20,75,4.5
+lunch,Falafel Wrap,Mediterranean,1,380,15,52,4.2
+lunch,Caesar Salad,Continental,0,350,18,15,4.1
+lunch,Rajma Chawal,North Indian,1,440,16,72,4.6
+lunch,Margherita Pizza,Italian,1,520,18,66,4.7
+lunch,Pad Thai,Thai,0,460,16,68,4.5
+lunch,Butter Chicken with Naan,Indian,0,680,28,72,4.9
+lunch,Mediterranean Mezze Platter,Mediterranean,1,420,14,58,4.3
+dinner,Grilled Fish with Rice,Continental,0,480,32,45,4.4
+dinner,Mixed Vegetable Curry with Roti,Indian,1,420,15,60,4.2
+dinner,Paneer Butter Masala with Naan,North Indian,1,580,22,70,4.7
+dinner,Teriyaki Chicken Bowl,Japanese,0,450,28,52,4.5
+dinner,Vegetable Lasagna,Italian,1,520,18,65,4.3
+dinner,Tofu Stir Fry,Chinese,1,380,20,42,4.1
+dinner,Salmon with Quinoa,Continental,0,420,35,38,4.6
+dinner,Mushroom Risotto,Italian,1,460,12,72,4.4
+dinner,Korean BBQ Bowl,Korean,0,550,30,58,4.8
+dinner,Vegetable Biryani,Indian,1,480,14,75,4.5
+dinner,Grilled Lamb Chops,Mediterranean,0,520,38,28,4.7
+dinner,Palak Paneer with Naan,North Indian,1,490,20,62,4.6
+dinner,Pesto Pasta,Italian,1,440,16,65,4.3
+dinner,Beef Stir Fry with Noodles,Chinese,0,520,32,58,4.5
+dinner,Mediterranean Grilled Vegetables,Mediterranean,1,320,10,45,4.2
+breakfast,Breakfast Burrito,Mexican,0,420,18,48,4.6
+breakfast,Quinoa Breakfast Bowl,Continental,1,310,12,42,4.3
+breakfast,Shakshuka,Mediterranean,1,280,14,22,4.5
+breakfast,Congee,Chinese,0,250,8,48,4.2
+breakfast,Breakfast Sandwich,Continental,0,380,16,42,4.4
+lunch,Mexican Bowl,Mexican,1,520,18,68,4.5
+lunch,Poke Bowl,Japanese,0,440,28,52,4.6
+lunch,Greek Salad,Mediterranean,1,320,12,28,4.4
+lunch,Kung Pao Chicken,Chinese,0,480,26,55,4.7
+lunch,Quinoa Buddha Bowl,Continental,1,380,14,58,4.3
+dinner,Fish Tacos,Mexican,0,420,28,48,4.6
+dinner,Ratatouille,French,1,340,8,52,4.2
+dinner,Beef Bulgogi,Korean,0,520,32,48,4.7
+dinner,Eggplant Parmesan,Italian,1,460,16,58,4.4
+dinner,Thai Red Curry,Thai,0,490,24,62,4.6

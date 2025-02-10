@@ -50,6 +50,46 @@
                 margin-left: 0;
             }
         }
+
+        .chat-bubble {
+            background: #e9ecef;
+            padding: 8px 15px;
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .typing {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .typing .dot {
+            width: 8px;
+            height: 8px;
+            background: #666;
+            border-radius: 50%;
+            animation: typing-animation 1.5s infinite ease-in-out;
+        }
+
+        .typing .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing-animation {
+            0%, 100% {
+                transform: translateY(0);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translateY(-4px);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 
@@ -232,8 +272,15 @@
         <div id="chatbox"
             style="padding: 10px; overflow-y: auto; height: 350px; display: flex; flex-direction: column; gap: 10px;">
         </div>
-        <div id="typing-indicator" style="display: none; padding: 10px; font-style: italic; color: gray;">HostelBot is
-            typing...</div>
+        <div id="typing-indicator" style="display: none; padding: 10px; align-self: flex-start; margin: 5px;">
+            <div class="chat-bubble">
+                <div class="typing">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+        </div>
         <div style="padding: 10px; border-top: 1px solid #ccc; display: flex; gap: 5px;">
             <input type="text" id="user-input" placeholder="Type your message here..."
                 style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
@@ -334,7 +381,14 @@
 
             function appendMessage(sender, text, type) {
                 const messageDiv = document.createElement('div');
-                messageDiv.textContent = text;
+                
+                // Format the message with proper markdown
+                const formattedText = text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Convert **text** to bold
+                    .replace(/^- (.*?)$/gm, '• $1') // Convert - to bullet points
+                    .replace(/\n/g, '<br>'); // Convert newlines to <br>
+                
+                messageDiv.innerHTML = formattedText;
                 messageDiv.style.padding = '10px';
                 messageDiv.style.borderRadius = '10px';
                 messageDiv.style.maxWidth = '80%';
@@ -342,6 +396,7 @@
                 messageDiv.style.background = type === 'user' ? '#007bff' : '#e9ecef';
                 messageDiv.style.color = type === 'user' ? 'white' : 'black';
                 messageDiv.style.alignSelf = type === 'user' ? 'flex-end' : 'flex-start';
+                
                 chatbox.appendChild(messageDiv);
                 chatbox.scrollTop = chatbox.scrollHeight;
             }
