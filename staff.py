@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 import numpy as np
 from face_recognition_utils import recognize_face
-from utils import login_required
+from utils import login_required, send_email, can_send_notification
 from datetime import datetime
 from config import db, users
 from bson import ObjectId
@@ -281,6 +281,7 @@ def security_check():
 
     try:
         image_data = request.json.get("image_data")
+        ADMIN_EMAIL = "abhijithsnair2025@mca.ajce.in"
 
         # Get all user face encodings (both students and staff)
         all_users = list(users.find({"face_encoding": {"$exists": True}}))
@@ -290,14 +291,54 @@ def security_check():
         # Recognize the face
         recognized_index = recognize_face(image_data, known_face_encodings)
 
+        current_time = datetime.utcnow()
+        location = "Main Entrance"  # You can make this dynamic if needed
+
         if recognized_index is None:
+            # Check if we can send notification (5 minute cooldown for unrecognized alerts)
+            if can_send_notification("unrecognized_person"):
+                send_email(
+                    to_email=ADMIN_EMAIL,
+                    subject="⚠️ Security Alert - Unrecognized Person Detected",
+                    body=f"""
+                    Security Alert!
+                    
+                    An unrecognized person was detected by the security system.
+                    Location: {location}
+                    Time: {current_time}
+                    Reported by: {session['user']['username']}
+                    
+                    Please review the attached image and take necessary action.
+                    """,
+                    image_data=image_data
+                )
+
             return jsonify({
                 "success": False,
-                "message": "Unrecognized person detected"
+                "message": "Unrecognized person detected. Admin has been notified."
             })
 
         recognized_user_id = user_ids[recognized_index]
         recognized_user = users.find_one({"_id": ObjectId(recognized_user_id)})
+
+        # Send notification for authorized entry (15 minute cooldown per user)
+        if can_send_notification(f"authorized_entry_{recognized_user_id}", cooldown_minutes=15):
+            send_email(
+                to_email=ADMIN_EMAIL,
+                subject="✅ Security Update - Authorized Entry",
+                body=f"""
+                Authorized Entry Detected
+                
+                Person: {recognized_user['full_name']}
+                Role: {recognized_user['role']}
+                Location: {location}
+                Time: {current_time}
+                Verified by: {session['user']['username']}
+                
+                This is an automated notification for security logging purposes.
+                """,
+                image_data=image_data
+            )
 
         return jsonify({
             "success": True,
