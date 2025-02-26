@@ -100,6 +100,8 @@ def update_profile():
     full_name = request.form.get("full_name")
     email = request.form.get("email")
     phone = request.form.get("phone")
+    year_of_study = request.form.get("year_of_study")
+    gender = request.form.get("gender")
 
     # Validate full name
     if not full_name or len(full_name) < 2:
@@ -118,11 +120,25 @@ def update_profile():
     if not re.match(r"^\+?1?\d{9,15}$", phone):
         return jsonify({"success": False, "message": "Invalid phone number"}), 400
 
+    # Validate year of study
+    try:
+        year_of_study = int(year_of_study)
+        if year_of_study not in range(1, 6):
+            return jsonify({"success": False, "message": "Invalid year of study"}), 400
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid year of study"}), 400
+
+    # Validate gender
+    if gender not in ["male", "female", "other"]:
+        return jsonify({"success": False, "message": "Invalid gender"}), 400
+
     # Update user data
     update_data = {
         "full_name": full_name,
         "email": email,
-        "phone": phone
+        "phone": phone,
+        "year_of_study": year_of_study,
+        "gender": gender
     }
 
     users.update_one({"_id": user_id}, {"$set": update_data})

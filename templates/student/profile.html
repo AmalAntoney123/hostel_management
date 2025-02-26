@@ -7,6 +7,8 @@
             <p><strong>Full Name:</strong> <span id="displayFullName">{{ user.get('full_name', 'Not provided') }}</span></p>
             <p><strong>Email:</strong> <span id="displayEmail">{{ user.get('email', 'Not provided') }}</span></p>
             <p><strong>Phone:</strong> <span id="displayPhone">{{ user.get('phone', 'Not provided') }}</span></p>
+            <p><strong>Year of Study:</strong> <span id="displayYearOfStudy">{{ user.get('year_of_study', 'Not provided') }}</span></p>
+            <p><strong>Gender:</strong> <span id="displayGender">{{ user.get('gender', 'Not provided') }}</span></p>
             <p><strong>Role:</strong> {{ user['role'] }}</p>
             
             <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#updateProfileModal">
@@ -41,6 +43,24 @@
                         <div class="form-group">
                             <label for="phone">Phone</label>
                             <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.get('phone', '') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="year_of_study">Year of Study</label>
+                            <select class="form-control" id="year_of_study" name="year_of_study" required>
+                                <option value="1" {% if user.get('year_of_study') == 1 %}selected{% endif %}>First Year</option>
+                                <option value="2" {% if user.get('year_of_study') == 2 %}selected{% endif %}>Second Year</option>
+                                <option value="3" {% if user.get('year_of_study') == 3 %}selected{% endif %}>Third Year</option>
+                                <option value="4" {% if user.get('year_of_study') == 4 %}selected{% endif %}>Fourth Year</option>
+                                <option value="5" {% if user.get('year_of_study') == 5 %}selected{% endif %}>Fifth Year</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select class="form-control" id="gender" name="gender" required>
+                                <option value="male" {% if user.get('gender') == 'male' %}selected{% endif %}>Male</option>
+                                <option value="female" {% if user.get('gender') == 'female' %}selected{% endif %}>Female</option>
+                                <option value="other" {% if user.get('gender') == 'other' %}selected{% endif %}>Other</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn btn-primary">Update Profile</button>
                     </form>
@@ -99,6 +119,8 @@
                         $('#displayFullName').text($('#full_name').val());
                         $('#displayEmail').text($('#email').val());
                         $('#displayPhone').text($('#phone').val());
+                        $('#displayYearOfStudy').text($('#year_of_study').val());
+                        $('#displayGender').text($('#gender').val());
                         // Close the modal
                         $('#updateProfileModal').modal('hide');
                     } else {

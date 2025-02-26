@@ -241,46 +241,105 @@ def get_floors(block_id):
     return jsonify({"success": True, "floors": floors})
 
 
-@student_bp.route(
-    "/student/get_available_rooms/<block_id>/<int:floor_index>", methods=["GET"]
-)
+@student_bp.route("/student/get_available_rooms/<block_id>/<int:floor_index>", methods=["GET"])
 @login_required
 def get_available_rooms(block_id, floor_index):
     if session["user"]["role"] != "student":
         return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    block = db.blocks.find_one({"_id": ObjectId(block_id)})
-    if not block or floor_index >= len(block["floors"]):
-        return jsonify({"success": False, "message": "Block or floor not found"}), 404
+    try:
+        # Get current user details
+        user_id = ObjectId(session["user"]["_id"])
+        current_user = users.find_one({"_id": user_id})
+        user_gender = current_user.get("gender")
+        user_year = current_user.get("year_of_study")
 
-    floor = block["floors"][floor_index]
-    rooms = []
-    for room_type in ["single", "double", "triple"]:
-        capacity = 1 if room_type == "single" else (2 if room_type == "double" else 3)
+        block = db.blocks.find_one({"_id": ObjectId(block_id)})
+        if not block or floor_index >= len(block["floors"]):
+            return jsonify({"success": False, "message": "Block or floor not found"}), 404
 
-        for is_attached in [True, False]:
-            room_numbers = floor[
-                f"{room_type}{'Attached' if is_attached else 'NonAttached'}RoomNumbers"
-            ]
-            for room_number in room_numbers:
-                occupancy = db.room_assignments.count_documents(
-                    {
+        floor = block["floors"][floor_index]
+        rooms = []
+        gender_year_matches = []
+        gender_matches = []
+        year_matches = []
+        other_rooms = []
+
+        for room_type in ["single", "double", "triple"]:
+            capacity = 1 if room_type == "single" else (2 if room_type == "double" else 3)
+
+            for is_attached in [True, False]:
+                room_numbers = floor[
+                    f"{room_type}{'Attached' if is_attached else 'NonAttached'}RoomNumbers"
+                ]
+                
+                for room_number in room_numbers:
+                    # Get current occupants
+                    room_assignments = list(db.room_assignments.find({
                         "block_id": str(block_id),
                         "floor_index": floor_index,
-                        "room_number": room_number,
-                    }
-                )
-                if occupancy < capacity:
-                    rooms.append(
-                        {
+                        "room_number": room_number
+                    }))
+                    
+                    current_occupancy = len(room_assignments)
+                    
+                    if current_occupancy < capacity:
+                        room_info = {
                             "number": room_number,
                             "type": room_type,
                             "attached": is_attached,
-                            "available_beds": capacity - occupancy,
+                            "available_beds": capacity - current_occupancy
                         }
-                    )
 
-    return jsonify({"success": True, "rooms": rooms})
+                        # If room has occupants, check for matches
+                        if current_occupancy > 0:
+                            occupant_details = []
+                            for assignment in room_assignments:
+                                occupant = users.find_one({"_id": ObjectId(assignment["student_id"])})
+                                if occupant:
+                                    occupant_details.append({
+                                        "gender": occupant.get("gender", "Not specified"),
+                                        "year": occupant.get("year_of_study", "Not specified")
+                                    })
+
+                            same_gender = all(od["gender"] == user_gender for od in occupant_details)
+                            same_year = all(od["year"] == user_year for od in occupant_details)
+
+                            room_info["occupants"] = occupant_details
+
+                            if same_gender and same_year:
+                                room_info["match_type"] = "Same gender and year"
+                                gender_year_matches.append(room_info)
+                            elif same_gender:
+                                room_info["match_type"] = "Same gender"
+                                gender_matches.append(room_info)
+                            elif same_year:
+                                room_info["match_type"] = "Same year"
+                                year_matches.append(room_info)
+                            else:
+                                room_info["match_type"] = "No match"
+                                other_rooms.append(room_info)
+                        else:
+                            room_info["match_type"] = "Empty room"
+                            room_info["occupants"] = []
+                            other_rooms.append(room_info)
+
+        # Combine rooms in priority order
+        rooms = (gender_year_matches + gender_matches + year_matches + other_rooms)
+
+        return jsonify({
+            "success": True, 
+            "rooms": rooms,
+            "userProfile": {
+                "gender": user_gender,
+                "year": user_year
+            }
+        })
+
+    except Exception as e:
+        print(f"Error getting available rooms: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
 
 
 @student_bp.route("/student/request_room_change", methods=["POST"])
@@ -1187,3 +1246,109 @@ def get_full_document_path(relative_path):
     if not upload_folder:
         upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     return os.path.join(upload_folder, os.path.basename(relative_path))
+
+@student_bp.route("/student/get_profile_info", methods=["GET"])
+@login_required
+def get_profile_info():
+    user_id = ObjectId(session["user"]["_id"])
+    user = users.find_one({"_id": user_id})
+    return jsonify({
+        "gender": user.get("gender"),
+        "year_of_study": user.get("year_of_study")
+    })
+
+@student_bp.route("/student/get_room_recommendations", methods=["GET"])
+@login_required
+def get_room_recommendations():
+    try:
+        user_id = ObjectId(session["user"]["_id"])
+        user = users.find_one({"_id": user_id})
+        
+        # Get current room assignment
+        current_room = db.room_assignments.find_one({"student_id": str(user_id)})
+        
+        recommendations = []
+        gender_year_matches = []
+        gender_matches = []
+        proximity_matches = []
+        empty_rooms = []
+        
+        # Get all room assignments to analyze occupancy
+        room_assignments = list(db.room_assignments.find())
+        
+        # Get all blocks
+        blocks = list(db.blocks.find())
+        
+        for block in blocks:
+            for floor_idx, floor in enumerate(block["floors"]):
+                # Check each room type
+                for room_type in ["single", "double", "triple"]:
+                    attached_rooms = floor[f"{room_type}AttachedRoomNumbers"]
+                    non_attached_rooms = floor[f"{room_type}NonAttachedRoomNumbers"]
+                    all_rooms = attached_rooms + non_attached_rooms
+                    
+                    for room_number in all_rooms:
+                        # Get current occupants
+                        occupants = [
+                            ra for ra in room_assignments 
+                            if ra["block_id"] == str(block["_id"]) 
+                            and ra["floor_index"] == floor_idx 
+                            and ra["room_number"] == room_number
+                        ]
+                        
+                        capacity = 1 if room_type == "single" else (2 if room_type == "double" else 3)
+                        
+                        if len(occupants) < capacity:
+                            room_info = {
+                                "block_id": str(block["_id"]),
+                                "block_name": block["name"],
+                                "floor_index": floor_idx,
+                                "room_number": room_number,
+                                "room_type": room_type,
+                            }
+
+                            # If room has occupants, check for matches
+                            if occupants:
+                                occupant_details = [users.find_one({"_id": ObjectId(occ["student_id"])}) for occ in occupants]
+                                same_gender = all(od.get("gender") == user["gender"] for od in occupant_details if od)
+                                same_year = all(od.get("year_of_study") == user["year_of_study"] for od in occupant_details if od)
+                                
+                                if same_gender and same_year:
+                                    room_info["recommendation_reason"] = "Roommates of same gender and year"
+                                    gender_year_matches.append(room_info)
+                                elif same_gender:
+                                    room_info["recommendation_reason"] = "Roommates of same gender"
+                                    gender_matches.append(room_info)
+                                else:
+                                    # Check proximity to current room
+                                    if current_room and current_room["block_id"] == str(block["_id"]):
+                                        if current_room["floor_index"] == floor_idx:
+                                            room_info["recommendation_reason"] = "Room on the same floor"
+                                            proximity_matches.append(room_info)
+                                        elif abs(current_room["floor_index"] - floor_idx) == 1:
+                                            room_info["recommendation_reason"] = "Room on adjacent floor"
+                                            proximity_matches.append(room_info)
+                            else:
+                                room_info["recommendation_reason"] = "Empty room available"
+                                empty_rooms.append(room_info)
+
+        # Combine recommendations in priority order
+        recommendations = (
+            gender_year_matches +  # First priority: same gender and year
+            gender_matches +       # Second priority: same gender only
+            proximity_matches +    # Third priority: nearby rooms
+            empty_rooms           # Last priority: empty rooms
+        )
+        
+        # Return top 5 recommendations
+        return jsonify({
+            "success": True,
+            "recommendations": recommendations[:5]
+        })
+        
+    except Exception as e:
+        print(f"Error getting room recommendations: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "Error getting room recommendations"
+        }), 500
