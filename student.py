@@ -6,6 +6,7 @@ from flask import (
     url_for,
     request,
     jsonify,
+    current_app
 )
 from face_recognition_utils import process_face_image
 from utils import login_required
@@ -21,6 +22,8 @@ import requests  # Add this import for making API calls
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai  # Import with alias
+from werkzeug.utils import secure_filename
+from pathlib import Path
 
 
 student_bp = Blueprint("student", __name__)
@@ -524,6 +527,17 @@ def get_fee_info():
                     })
                     print(f"Added upcoming payment for rent: {rent_fee_amount}")  # Debug log
 
+        # Get approved scholarships
+        approved_scholarships = list(db.fee_reductions.find({
+            "student_id": ObjectId(student_id),
+            "reduction_type": "scholarship"
+        }))
+
+        # Apply scholarship reductions to fees
+        for payment in upcoming_payments:
+            for scholarship in approved_scholarships:
+                payment["amount"] -= scholarship["reduction_amount"]
+
         fee_info = {
             "joinDate": join_date.isoformat(),
             "messFeeDay": fee_settings["messFeeDay"],
@@ -540,6 +554,7 @@ def get_fee_info():
         print(f"Error in get_fee_info: {str(e)}")
         print(traceback.format_exc())  # Print the full traceback for debugging
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):
     next_date = current_date.replace(day=1, tzinfo=timezone.utc) + relativedelta(months=months_ahead)
     next_date = next_date.replace(
@@ -984,10 +999,143 @@ def chat():
     response = hostel_chatbot.get_response(user_message)
     return jsonify({'response': response})
 
-# Example usage with Flask
-if __name__ == '__main__':
-    from flask import Flask
-    app = Flask(__name__)
-    app.register_blueprint(student_bp)
+@student_bp.route("/student/submit_scholarship", methods=["POST"])
+@login_required
+def submit_scholarship():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    app.run(debug=True)
+    try:
+        # Use current_app instead of app
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder:
+            upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+            current_app.config['UPLOAD_FOLDER'] = upload_folder
+
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+
+        data = request.form
+        file = request.files.get('documents')
+        
+        # Validate required fields
+        required_fields = ['scholarship_type', 'annual_income', 'academic_percentage']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"success": False, "message": f"{field} is required"}), 400
+
+        if not file:
+            return jsonify({"success": False, "message": "Documents are required"}), 400
+
+        # Create a unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"scholarship_{session['user']['_id']}_{timestamp}_{secure_filename(file.filename)}"
+        
+        # Store just the filename in the database
+        relative_path = filename  # No 'uploads/' prefix
+        
+        # Use full path for saving
+        full_path = os.path.join(upload_folder, filename)
+        
+        # Save the file using full path
+        file.save(full_path)
+
+        # Create scholarship application with just filename
+        scholarship_application = {
+            "student_id": ObjectId(session["user"]["_id"]),
+            "student_name": session["user"]["username"],
+            "scholarship_type": data["scholarship_type"],
+            "annual_income": float(data["annual_income"]),
+            "academic_percentage": float(data["academic_percentage"]),
+            "document_path": relative_path,  # Store just filename
+            "status": "pending",
+            "submitted_at": datetime.utcnow()
+        }
+
+        # Check for existing pending application
+        existing_application = db.scholarship_applications.find_one({
+            "student_id": ObjectId(session["user"]["_id"]),
+            "scholarship_type": data["scholarship_type"],
+            "status": "pending"
+        })
+
+        if existing_application:
+            return jsonify({
+                "success": False, 
+                "message": "You already have a pending application for this scholarship type"
+            }), 400
+
+        # Insert new application
+        result = db.scholarship_applications.insert_one(scholarship_application)
+
+        if result.inserted_id:
+            return jsonify({
+                "success": True, 
+                "message": "Scholarship application submitted successfully"
+            })
+        else:
+            # Clean up file if database insert failed
+            if os.path.exists(full_path):
+                os.remove(full_path)
+            return jsonify({
+                "success": False, 
+                "message": "Failed to submit application"
+            }), 500
+
+    except Exception as e:
+        print(f"Error in submit_scholarship: {str(e)}")
+        print(traceback.format_exc())
+        # Clean up file if an error occurred
+        if 'full_path' in locals() and os.path.exists(full_path):
+            os.remove(full_path)
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+@student_bp.route("/student/get_scholarships", methods=["GET"])
+@login_required
+def get_scholarships():
+    if session["user"]["role"] != "student":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        # Get available scholarship types
+        scholarship_types = list(db.scholarship_types.find())
+        for s_type in scholarship_types:
+            s_type['_id'] = str(s_type['_id'])
+        
+        # Get student's applications
+        student_id = ObjectId(session["user"]["_id"])
+        applications = list(db.scholarship_applications.find({"student_id": student_id}))
+
+        # Format the data
+        formatted_applications = []
+        for app in applications:
+            formatted_app = {
+                "_id": str(app["_id"]),
+                "student_id": str(app["student_id"]),
+                "student_name": app["student_name"],
+                "scholarship_type": app["scholarship_type"],
+                "annual_income": app["annual_income"],
+                "academic_percentage": app["academic_percentage"],
+                "status": app["status"],
+                "submitted_at": app["submitted_at"].isoformat(),
+                "document_path": app.get("document_path", "")
+            }
+            formatted_applications.append(formatted_app)
+
+        return jsonify({
+            "success": True,
+            "scholarshipTypes": scholarship_types,
+            "applications": formatted_applications
+        })
+
+    except Exception as e:
+        print(f"Error in get_scholarships: {str(e)}")
+        print(traceback.format_exc())  # Add detailed error logging
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+
+def get_full_document_path(relative_path):
+    """Convert relative document path to full system path"""
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    return os.path.join(upload_folder, os.path.basename(relative_path))

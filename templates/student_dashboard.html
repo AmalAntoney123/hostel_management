@@ -90,6 +90,30 @@
                 opacity: 1;
             }
         }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #sidebar {
+            height: 100vh;
+            position: sticky;
+            top: 0;
+        }
     </style>
 </head>
 
@@ -101,68 +125,76 @@
                 <span class="fs-4">Hostel Cloudsuite</span>
             </a>
             <hr>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="#dashboard" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a href="#profile" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-person me-2"></i>
-                        Profile
-                    </a>
-                </li>
-                <li>
-                    <a href="#room-info" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-house-door me-2"></i>
-                        Room Info
-                    </a>
-                </li>
-                <li>
-                    <a href="#fee-payment" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-cash-coin me-2"></i>
-                        Fee Payment
-                    </a>
-                </li>
-                <li>
-                    <a href="#attendance" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-calendar-check me-2"></i>
-                        Attendance
-                    </a>
-                </li>
-                <li>
-                    <a href="#complaints" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Complaints
-                    </a>
-                </li>
-                <li>
-                    <a href="#meal-plan" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-egg-fried me-2"></i>
-                        Meal Plan
-                    </a>
-                </li>
-                <li>
-                    <a href="#visitors" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-person-badge me-2"></i>
-                        Visitors
-                    </a>
-                </li>
-                <li>
-                    <a href="#notifications" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-bell me-2"></i>
-                        Notifications
-                    </a>
-                </li>
-                <li>
-                    <a href="#outing-request" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-door-open me-2"></i>
-                        Outing Request
-                    </a>
-                </li>
-            </ul>
+            <div class="sidebar-menu-wrapper" style="flex: 1; overflow-y: auto; max-height: calc(100vh - 180px);">
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item">
+                        <a href="#dashboard" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#profile" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-person me-2"></i>
+                            Profile
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#room-info" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-house-door me-2"></i>
+                            Room Info
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#fee-payment" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-cash-coin me-2"></i>
+                            Fee Payment
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#attendance" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Attendance
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#complaints" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Complaints
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#meal-plan" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-egg-fried me-2"></i>
+                            Meal Plan
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#visitors" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-person-badge me-2"></i>
+                            Visitors
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#notifications" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-bell me-2"></i>
+                            Notifications
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#outing-request" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-door-open me-2"></i>
+                            Outing Request
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#scholarships" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-award me-2"></i>
+                            Scholarships
+                        </a>
+                    </li>
+                </ul>
+            </div>
             <hr>
             <div class="dropdown">
                 <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
@@ -206,6 +238,7 @@
                 {% include 'student/visitors.html' %}
                 {% include 'student/notifications.html' %}
                 {% include 'student/outing_request.html' %}
+                {% include 'student/scholarship.html' %}
             </div>
         </div>
     </div>

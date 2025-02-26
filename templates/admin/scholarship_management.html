@@ -1,0 +1,446 @@
+<div class="tab-pane fade" id="scholarship-management">
+    <!-- Add sub-tab navigation -->
+    <ul class="nav nav-tabs mb-4" id="scholarshipSubTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="add-scholarship-tab" data-bs-toggle="tab" data-bs-target="#add-scholarship" type="button" role="tab">
+                Add New Scholarship
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="active-scholarships-tab" data-bs-toggle="tab" data-bs-target="#active-scholarships" type="button" role="tab">
+                Active Scholarships
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pending-applications-tab" data-bs-toggle="tab" data-bs-target="#pending-applications" type="button" role="tab">
+                Pending Applications
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="approved-applications-tab" data-bs-toggle="tab" data-bs-target="#approved-applications" type="button" role="tab">
+                Approved Scholarships
+            </button>
+        </li>
+    </ul>
+
+    <!-- Sub-tab content -->
+    <div class="tab-content" id="scholarshipSubTabContent">
+        <!-- Add New Scholarship Tab -->
+        <div class="tab-pane fade show active" id="add-scholarship" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Add New Scholarship Type</h5>
+                </div>
+                <div class="card-body">
+                    <form id="add-scholarship-form">
+                        <div class="form-group mb-3">
+                            <label for="scholarship-name">Scholarship Name</label>
+                            <input type="text" class="form-control" id="scholarship-name" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="reduction-amount">Fee Reduction Amount</label>
+                            <input type="number" class="form-control" id="reduction-amount" min="0" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="eligibility-criteria">Eligibility Criteria</label>
+                            <textarea class="form-control" id="eligibility-criteria" rows="3" required></textarea>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label>Required Documents</label>
+                            <div id="documents-container">
+                                <div class="document-entry d-flex mb-2">
+                                    <input type="text" class="form-control me-2" name="required-documents[]" placeholder="Document Name" required>
+                                    <button type="button" class="btn btn-danger remove-document">×</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-document">Add Document</button>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Add Scholarship</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Scholarships Tab -->
+        <div class="tab-pane fade" id="active-scholarships" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Active Scholarship Types</h5>
+                </div>
+                <div class="card-body">
+                    <div id="active-scholarships-list">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Applications Tab -->
+        <div class="tab-pane fade" id="pending-applications" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Pending Scholarship Applications</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Scholarship Type</th>
+                                <th>Applied Date</th>
+                                <th>Academic %</th>
+                                <th>Annual Income</th>
+                                <th>Documents</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-scholarships">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approved Applications Tab -->
+        <div class="tab-pane fade" id="approved-applications" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Approved Scholarship Applications</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Scholarship Type</th>
+                                <th>Applied Date</th>
+                                <th>Academic %</th>
+                                <th>Annual Income</th>
+                                <th>Reduction Amount</th>
+                                <th>Documents</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approved-scholarships">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Add new document input field
+    $('#add-document').click(function() {
+        const newEntry = `
+            <div class="document-entry d-flex mb-2">
+                <input type="text" class="form-control me-2" name="required-documents[]" placeholder="Document Name" required>
+                <button type="button" class="btn btn-danger remove-document">×</button>
+            </div>
+        `;
+        $('#documents-container').append(newEntry);
+    });
+
+    // Remove document input field
+    $(document).on('click', '.remove-document', function() {
+        if ($('.document-entry').length > 1) {
+            $(this).parent().remove();
+        } else {
+            alert('At least one required document must be specified');
+        }
+    });
+
+    // Form submission
+    $('#add-scholarship-form').submit(function(e) {
+        e.preventDefault();
+        
+        // Collect all document requirements
+        const requiredDocs = [];
+        $('input[name="required-documents[]"]').each(function() {
+            requiredDocs.push($(this).val().trim());
+        });
+
+        // Validate inputs
+        const scholarshipName = $('#scholarship-name').val().trim();
+        const reductionAmount = parseFloat($('#reduction-amount').val());
+        const eligibilityCriteria = $('#eligibility-criteria').val().trim();
+
+        if (!scholarshipName || !reductionAmount || !eligibilityCriteria || requiredDocs.length === 0) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        if (reductionAmount <= 0) {
+            alert('Reduction amount must be greater than 0');
+            return;
+        }
+
+        // Send data to server
+        $.ajax({
+            url: '/admin/add_scholarship_type',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                name: scholarshipName,
+                reduction_amount: reductionAmount,
+                eligibility_criteria: eligibilityCriteria,
+                required_documents: requiredDocs
+            }),
+            success: function(response) {
+                if (response.success) {
+                    alert('Scholarship type added successfully');
+                    $('#add-scholarship-form')[0].reset();
+                    loadActiveScholarships();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Failed to add scholarship type';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                alert('Error: ' + errorMessage);
+            }
+        });
+    });
+
+    // Load active scholarships
+    function loadActiveScholarships() {
+        $.ajax({
+            url: '/admin/get_scholarship_types',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const scholarshipsList = $('#active-scholarships-list');
+                    scholarshipsList.empty();
+                    
+                    response.scholarships.forEach(function(scholarship) {
+                        scholarshipsList.append(`
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">${scholarship.name}</h5>
+                                    <p class="card-text">
+                                        <strong>Reduction Amount:</strong> ₹${scholarship.reduction_amount}<br>
+                                        <strong>Required Documents:</strong><br>
+                                        ${scholarship.required_documents.map(doc => `• ${doc}`).join('<br>')}
+                                    </p>
+                                </div>
+                            </div>
+                        `);
+                    });
+                }
+            },
+            error: function() {
+                alert('Failed to load active scholarships');
+            }
+        });
+    }
+
+    // Load pending applications
+    function loadPendingApplications() {
+        $.ajax({
+            url: '/admin/get_pending_applications',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const tbody = $('#pending-scholarships');
+                    tbody.empty();
+                    
+                    response.applications.forEach(function(app) {
+                        const appliedDate = new Date(app.submitted_at).toLocaleDateString();
+                        tbody.append(`
+                            <tr data-id="${app._id}">
+                                <td>${app.student_name}</td>
+                                <td>${app.scholarship_type_name}</td>
+                                <td>${appliedDate}</td>
+                                <td>${app.academic_percentage}%</td>
+                                <td>₹${app.annual_income}</td>
+                                <td>
+                                    <a href="/admin/download_document/${app._id}" class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-download"></i> View
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-success btn-sm approve-application" 
+                                                data-id="${app._id}">
+                                            <span class="normal-text">Approve</span>
+                                            <span class="loading-text d-none">
+                                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                            </span>
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm reject-application" 
+                                                data-id="${app._id}">
+                                            <span class="normal-text">Reject</span>
+                                            <span class="loading-text d-none">
+                                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `);
+                    });
+
+                    if (response.applications.length === 0) {
+                        tbody.append(`
+                            <tr>
+                                <td colspan="7" class="text-center">No pending applications</td>
+                            </tr>
+                        `);
+                    }
+                }
+            },
+            error: function() {
+                const tbody = $('#pending-scholarships');
+                tbody.empty().append(`
+                    <tr>
+                        <td colspan="7" class="text-center text-danger">
+                            Failed to load applications. Please try again later.
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    }
+
+    // Handle application approval/rejection
+    function updateApplicationStatus(applicationId, status, button) {
+        // Show loading state
+        const btnGroup = button.closest('.btn-group');
+        btnGroup.find('button').prop('disabled', true);
+        button.find('.normal-text').addClass('d-none');
+        button.find('.loading-text').removeClass('d-none');
+
+        $.ajax({
+            url: '/admin/update_scholarship_status',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                application_id: applicationId,
+                status: status
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Remove the row with animation
+                    $(`tr[data-id="${applicationId}"]`).fadeOut(400, function() {
+                        $(this).remove();
+                        loadPendingApplications(); // Refresh the list
+                    });
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Failed to update application status';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                alert('Error: ' + errorMessage);
+            },
+            complete: function() {
+                // Restore button state
+                btnGroup.find('button').prop('disabled', false);
+                button.find('.loading-text').addClass('d-none');
+                button.find('.normal-text').removeClass('d-none');
+            }
+        });
+    }
+
+    // Event handlers for approve/reject buttons
+    $(document).on('click', '.approve-application', function() {
+        updateApplicationStatus($(this).data('id'), 'approved', $(this));
+    });
+
+    $(document).on('click', '.reject-application', function() {
+        if (confirm('Are you sure you want to reject this application?')) {
+            updateApplicationStatus($(this).data('id'), 'rejected', $(this));
+        }
+    });
+
+    // Load pending applications when switching to the tab
+    $('#pending-applications-tab').on('shown.bs.tab', function (e) {
+        loadPendingApplications();
+    });
+
+    // Load approved applications
+    function loadApprovedApplications() {
+        $.ajax({
+            url: '/admin/get_approved_applications',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const tbody = $('#approved-scholarships');
+                    tbody.empty();
+                    
+                    response.applications.forEach(function(app) {
+                        const appliedDate = new Date(app.submitted_at).toLocaleDateString();
+                        tbody.append(`
+                            <tr>
+                                <td>${app.student_name}</td>
+                                <td>${app.scholarship_type_name}</td>
+                                <td>${appliedDate}</td>
+                                <td>${app.academic_percentage}%</td>
+                                <td>₹${app.annual_income}</td>
+                                <td>₹${app.reduction_amount}</td>
+                                <td>
+                                    <a href="/admin/download_document/${app._id}" class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-download"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        `);
+                    });
+
+                    if (response.applications.length === 0) {
+                        tbody.append(`
+                            <tr>
+                                <td colspan="7" class="text-center">No approved applications</td>
+                            </tr>
+                        `);
+                    }
+                }
+            },
+            error: function() {
+                const tbody = $('#approved-scholarships');
+                tbody.empty().append(`
+                    <tr>
+                        <td colspan="7" class="text-center text-danger">
+                            Failed to load applications. Please try again later.
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    }
+
+    // Load approved applications when switching to the tab
+    $('#approved-applications-tab').on('shown.bs.tab', function (e) {
+        loadApprovedApplications();
+    });
+
+    // Initial load
+    loadActiveScholarships();
+    loadPendingApplications();
+    loadApprovedApplications();
+});
+</script>
+
+<style>
+.spinner-border {
+    margin-right: 0.5rem;
+}
+
+.btn-group .btn {
+    min-width: 80px;
+}
+
+.loading-text .spinner-border {
+    margin: 0;
+}
+</style>

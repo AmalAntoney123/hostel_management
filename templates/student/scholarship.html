@@ -1,0 +1,285 @@
+<div class="tab-pane fade" id="scholarships">
+    <!-- Add sub-tab navigation -->
+    <ul class="nav nav-tabs mb-4" id="scholarshipSubTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="submit-application-tab" data-bs-toggle="tab" data-bs-target="#submit-application" type="button" role="tab">
+                Submit Application
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="my-applications-tab" data-bs-toggle="tab" data-bs-target="#my-applications" type="button" role="tab">
+                My Applications
+            </button>
+        </li>
+    </ul>
+
+    <!-- Sub-tab content -->
+    <div class="tab-content" id="scholarshipSubTabContent">
+        <!-- Submit Application Tab -->
+        <div class="tab-pane fade show active" id="submit-application" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Apply for Scholarship</h5>
+                </div>
+                <div class="card-body">
+                    <form id="scholarship-application-form">
+                        <div class="form-group mb-3">
+                            <label for="scholarship-type">Scholarship Type</label>
+                            <select class="form-control" id="scholarship-type" required>
+                                <option value="">Select Scholarship Type</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="annual-income">Annual Family Income</label>
+                            <input type="number" class="form-control" id="annual-income" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="academic-percentage">Academic Percentage</label>
+                            <input type="number" class="form-control" id="academic-percentage" min="0" max="100" required>
+                        </div>
+                        <div id="required-documents-container">
+                            <!-- Will be populated dynamically based on selected scholarship -->
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3" id="submit-button">
+                            <span class="normal-text">Submit Application</span>
+                            <span class="loading-text d-none">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Submitting...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Applications Tab -->
+        <div class="tab-pane fade" id="my-applications" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Applications</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Scholarship Type</th>
+                                <th>Applied Date</th>
+                                <th>Status</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scholarship-applications">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Load scholarship types
+    function loadScholarshipTypes() {
+        $.ajax({
+            url: '/student/get_scholarships',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const select = $('#scholarship-type');
+                    select.empty().append('<option value="">Select Scholarship Type</option>');
+                    
+                    response.scholarshipTypes.forEach(function(type) {
+                        select.append(`
+                            <option value="${type._id}" 
+                                    data-documents='${JSON.stringify(type.required_documents)}'
+                                    data-criteria='${type.eligibility_criteria}'>
+                                ${type.name} - ₹${type.reduction_amount}
+                            </option>
+                        `);
+                    });
+                }
+            },
+            error: function() {
+                alert('Failed to load scholarship types');
+            }
+        });
+    }
+
+    // Update required documents when scholarship type changes
+    $('#scholarship-type').change(function() {
+        const selected = $(this).find(':selected');
+        const documents = selected.data('documents');
+        const container = $('#required-documents-container');
+        container.empty();
+
+        if (documents) {
+            container.append('<h6 class="mt-3">Required Documents</h6>');
+            documents.forEach(function(doc) {
+                container.append(`
+                    <div class="form-group mb-3">
+                        <label for="doc-${doc.replace(/\s+/g, '-')}">${doc}</label>
+                        <input type="file" class="form-control" 
+                               id="doc-${doc.replace(/\s+/g, '-')}"
+                               name="documents[]"
+                               accept=".pdf,.jpg,.jpeg,.png"
+                               required>
+                    </div>
+                `);
+            });
+        }
+    });
+
+    // Form submission with file uploads
+    $('#scholarship-application-form').submit(function(e) {
+        e.preventDefault();
+        
+        const submitBtn = $('#submit-button');
+        
+        // Disable button and show loading state
+        submitBtn.prop('disabled', true);
+        submitBtn.find('.normal-text').addClass('d-none');
+        submitBtn.find('.loading-text').removeClass('d-none');
+        
+        const formData = new FormData();
+        formData.append('scholarship_type', $('#scholarship-type').val());
+        formData.append('annual_income', $('#annual-income').val());
+        formData.append('academic_percentage', $('#academic-percentage').val());
+
+        // Append all files
+        $('input[name="documents[]"]').each(function() {
+            const file = this.files[0];
+            if (file) {
+                formData.append('documents', file, file.name);
+            }
+        });
+
+        $.ajax({
+            url: '/student/submit_scholarship',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    alert('Scholarship application submitted successfully');
+                    $('#scholarship-application-form')[0].reset();
+                    $('#required-documents-container').empty();
+                    loadApplications();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Failed to submit application';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                alert('Error: ' + errorMessage);
+            },
+            complete: function() {
+                // Re-enable button and restore normal state
+                submitBtn.prop('disabled', false);
+                submitBtn.find('.loading-text').addClass('d-none');
+                submitBtn.find('.normal-text').removeClass('d-none');
+            }
+        });
+    });
+
+    // Load user's scholarship applications
+    function loadApplications() {
+        $.ajax({
+            url: '/student/get_scholarships',
+            method: 'GET',
+            success: function(response) {
+                if (response.success && response.applications) {
+                    const tbody = $('#scholarship-applications');
+                    tbody.empty();
+                    
+                    response.applications.forEach(function(app) {
+                        // Find the scholarship type details
+                        const scholarshipType = response.scholarshipTypes.find(
+                            type => type._id === app.scholarship_type
+                        );
+                        
+                        // Format the date
+                        const appliedDate = new Date(app.submitted_at).toLocaleDateString();
+                        
+                        // Format the status with appropriate badge color
+                        let statusBadgeClass = '';
+                        switch(app.status.toLowerCase()) {
+                            case 'approved':
+                                statusBadgeClass = 'bg-success';
+                                break;
+                            case 'rejected':
+                                statusBadgeClass = 'bg-danger';
+                                break;
+                            case 'pending':
+                                statusBadgeClass = 'bg-warning';
+                                break;
+                            default:
+                                statusBadgeClass = 'bg-secondary';
+                        }
+
+                        tbody.append(`
+                            <tr>
+                                <td>${scholarshipType ? scholarshipType.name : 'Unknown'}</td>
+                                <td>${appliedDate}</td>
+                                <td><span class="badge ${statusBadgeClass}">${app.status}</span></td>
+                                <td>₹${scholarshipType ? scholarshipType.reduction_amount : 'N/A'}</td>
+                            </tr>
+                        `);
+                    });
+
+                    if (response.applications.length === 0) {
+                        tbody.append(`
+                            <tr>
+                                <td colspan="4" class="text-center">No applications found</td>
+                            </tr>
+                        `);
+                    }
+                }
+            },
+            error: function() {
+                const tbody = $('#scholarship-applications');
+                tbody.empty().append(`
+                    <tr>
+                        <td colspan="4" class="text-center text-danger">
+                            Failed to load applications. Please try again later.
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    }
+
+    // Initial load
+    loadScholarshipTypes();
+    loadApplications();
+
+    // Refresh applications when switching to My Applications tab
+    $('#my-applications-tab').on('shown.bs.tab', function (e) {
+        loadApplications();
+    });
+});
+
+// Initialize Bootstrap tabs
+var triggerTabList = [].slice.call(document.querySelectorAll('#scholarshipSubTabs button'))
+triggerTabList.forEach(function (triggerEl) {
+    new bootstrap.Tab(triggerEl)
+})
+</script>
+
+<style>
+.spinner-border {
+    margin-right: 0.5rem;
+}
+
+.badge {
+    padding: 0.5em 1em;
+    font-size: 0.875em;
+}
+</style> 

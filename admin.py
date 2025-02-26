@@ -7,6 +7,7 @@ from flask import (
     send_file,
     session,
     url_for,
+    current_app
 )
 from werkzeug.security import generate_password_hash
 from config import users, db  # Import the db object from your config file
@@ -28,6 +29,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import os
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -1959,3 +1961,259 @@ def get_meal_recommendations_route():
             "success": False,
             "message": "Error generating recommendations"
         }), 500
+
+@admin_bp.route("/add_scholarship_type", methods=["POST"])
+@login_required
+def add_scholarship_type():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ["name", "reduction_amount", "eligibility_criteria", "required_documents"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "success": False, 
+                    "message": f"Missing required field: {field}"
+                }), 400
+
+        # Validate reduction amount
+        try:
+            reduction_amount = float(data["reduction_amount"])
+            if reduction_amount <= 0:
+                return jsonify({
+                    "success": False,
+                    "message": "Reduction amount must be greater than 0"
+                }), 400
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "message": "Invalid reduction amount"
+            }), 400
+
+        # Validate required documents
+        if not isinstance(data["required_documents"], list) or len(data["required_documents"]) == 0:
+            return jsonify({
+                "success": False,
+                "message": "At least one required document must be specified"
+            }), 400
+
+        # Check for duplicate scholarship name
+        existing = db.scholarship_types.find_one({"name": data["name"]})
+        if existing:
+            return jsonify({
+                "success": False,
+                "message": "A scholarship with this name already exists"
+            }), 400
+
+        scholarship_type = {
+            "name": data["name"],
+            "reduction_amount": reduction_amount,
+            "eligibility_criteria": data["eligibility_criteria"],
+            "required_documents": data["required_documents"],
+            "created_at": datetime.utcnow(),
+            "created_by": session["user"]["username"],
+            "active": True
+        }
+
+        result = db.scholarship_types.insert_one(scholarship_type)
+        
+        if result.inserted_id:
+            return jsonify({
+                "success": True,
+                "message": "Scholarship type added successfully"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to add scholarship type"
+            }), 500
+
+    except Exception as e:
+        print(f"Error in add_scholarship_type: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
+@admin_bp.route("/process_scholarship", methods=["POST"])
+@login_required
+def process_scholarship():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        application_id = ObjectId(data["application_id"])
+        action = data["action"]
+
+        # Update application status
+        update = {
+            "status": action,
+            "processed_at": datetime.utcnow(),
+            "processed_by": session["user"]["username"]
+        }
+
+        if action == "approved":
+            # Get scholarship details
+            application = db.scholarship_applications.find_one({"_id": application_id})
+            scholarship_type = db.scholarship_types.find_one({"name": application["scholarship_type"]})
+            
+            # Add scholarship reduction to student's fee record
+            student_fee = {
+                "student_id": application["student_id"],
+                "reduction_type": "scholarship",
+                "reduction_amount": scholarship_type["reduction_amount"],
+                "valid_from": datetime.utcnow(),
+                "scholarship_id": application_id
+            }
+            db.fee_reductions.insert_one(student_fee)
+
+        result = db.scholarship_applications.update_one(
+            {"_id": application_id},
+            {"$set": update}
+        )
+
+        if result.modified_count:
+            return jsonify({"success": True, "message": f"Scholarship application {action} successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to process application"}), 500
+
+    except Exception as e:
+        print(f"Error in process_scholarship: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
+    
+@admin_bp.route("/get_scholarship_types", methods=["GET"])
+@login_required
+def get_scholarship_types():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        # Get all active scholarship types
+        scholarship_types = list(db.scholarship_types.find({"active": True}))
+        
+        # Format the ObjectId and datetime for JSON serialization
+        for scholarship in scholarship_types:
+            scholarship["_id"] = str(scholarship["_id"])
+            if "created_at" in scholarship:
+                scholarship["created_at"] = scholarship["created_at"].isoformat()
+            if "processed_at" in scholarship:
+                scholarship["processed_at"] = scholarship["processed_at"].isoformat()
+
+        return jsonify({
+            "success": True,
+            "scholarships": scholarship_types
+        })
+
+    except Exception as e:
+        print(f"Error in get_scholarship_types: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+        
+        
+@admin_bp.route("/get_pending_applications", methods=["GET"])
+@login_required
+def get_pending_applications():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        # Get pending applications
+        applications = list(db.scholarship_applications.find({"status": "pending"}))
+        
+        # Get all scholarship types for reference
+        scholarship_types = {str(st["_id"]): st for st in db.scholarship_types.find()}
+        
+        # Format the response
+        formatted_applications = []
+        for app in applications:
+            scholarship_type = scholarship_types.get(str(app["scholarship_type"]), {})
+            formatted_app = {
+                "_id": str(app["_id"]),
+                "student_id": str(app["student_id"]),
+                "student_name": app["student_name"],
+                "scholarship_type": str(app["scholarship_type"]),
+                "scholarship_type_name": scholarship_type.get("name", "Unknown"),
+                "annual_income": app["annual_income"],
+                "academic_percentage": app["academic_percentage"],
+                "status": app["status"],
+                "submitted_at": app["submitted_at"].isoformat(),
+                "document_path": app.get("document_path", "")
+            }
+            formatted_applications.append(formatted_app)
+
+        return jsonify({
+            "success": True,
+            "applications": formatted_applications
+        })
+
+    except Exception as e:
+        print(f"Error in get_pending_applications: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@admin_bp.route("/update_scholarship_status", methods=["POST"])
+@login_required
+def update_scholarship_status():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        application_id = ObjectId(data["application_id"])
+        status = data["status"]
+
+        if status not in ["approved", "rejected"]:
+            return jsonify({"success": False, "message": "Invalid status"}), 400
+
+        result = db.scholarship_applications.update_one(
+            {"_id": application_id},
+            {"$set": {
+                "status": status,
+                "updated_at": datetime.utcnow(),
+                "updated_by": session["user"]["username"]
+            }}
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"success": True, "message": f"Application {status} successfully"})
+        else:
+            return jsonify({"success": False, "message": "Application not found"}), 404
+
+    except Exception as e:
+        print(f"Error in update_scholarship_status: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@admin_bp.route("/download_document/<application_id>")
+@login_required
+def download_document(application_id):
+    if session["user"]["role"] != "admin":
+        return "Unauthorized", 403
+
+    try:
+        application = db.scholarship_applications.find_one({"_id": ObjectId(application_id)})
+        if not application or "document_path" not in application:
+            return "Document not found", 404
+
+        return send_file(
+            get_full_document_path(application["document_path"]),
+            as_attachment=True
+        )
+
+    except Exception as e:
+        print(f"Error in download_document: {str(e)}")
+        return str(e), 500
+    
+def get_full_document_path(filename):
+    """Convert filename to full system path"""
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        current_app.config['UPLOAD_FOLDER'] = upload_folder
+    
+    return os.path.join(upload_folder, filename)

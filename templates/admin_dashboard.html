@@ -47,97 +47,129 @@
                 margin-left: 0;
             }
         }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .sidebar-menu-wrapper::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #sidebar {
+            height: 100vh;
+            position: sticky;
+            top: 0;
+        }
     </style>
 </head>
 
 <body>
     <div class="wrapper">
         <!-- Sidebar -->
-        <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style="width: 280px; height: 700px;">
+        <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style="width: 280px;">
             <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
                 <span class="fs-4">Hostel Cloudsuite</span>
             </a>
             <hr>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="#dashboard" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a href="#user-management" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-people me-2"></i>
-                        User Management
-                    </a>
-                </li>
-                <li>
-                    <a href="#schedules" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-calendar3 me-2"></i>
-                        Schedules
-                    </a>
-                </li>
-                <li>
-                    <a href="#outing-request" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-door-open me-2"></i>
-                        Outing Request
-                    </a>
-                </li>
-                <li>
-                    <a href="#room-management" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-house-door me-2"></i>
-                        Room Management
-                    </a>
-                </li>
-                <li>
-                    <a href="#notices" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-house-door me-2"></i>
-                        Notices
-                    </a>
-                </li>
-                <li>
-                    <a href="#fee-management" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-cash-coin me-2"></i>
-                        Fee Management
-                    </a>
-                </li>
-                <li>
-                    <a href="#meal-planning" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-cash-coin me-2"></i>
-                        Meal Planning
-                    </a>
-                </li>
-                <li>
-                    <a href="#attendance" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-calendar-check me-2"></i>
-                        Attendance
-                    </a>
-                </li>
-                <li>
-                    <a href="#complaints" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Complaints
-                    </a>
-                </li>
-                <li>
-                    <a href="#inventory" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-box-seam me-2"></i>
-                        Inventory
-                    </a>
-                </li>
-                <li>
-                    <a href="#visitors" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-person-badge me-2"></i>
-                        Visitors
-                    </a>
-                </li>
-                <li>
-                    <a href="#reports" class="nav-link text-white" data-bs-toggle="pill">
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                        Reports
-                    </a>
-                </li>
-            </ul>
+            <div class="sidebar-menu-wrapper" style="flex: 1; overflow-y: auto; max-height: calc(100vh - 180px);">
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item">
+                        <a href="#dashboard" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#user-management" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-people me-2"></i>
+                            User Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#schedules" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-calendar3 me-2"></i>
+                            Schedules
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#outing-request" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-door-open me-2"></i>
+                            Outing Request
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#room-management" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-house-door me-2"></i>
+                            Room Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#notices" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-house-door me-2"></i>
+                            Notices
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#fee-management" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-cash-coin me-2"></i>
+                            Fee Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#meal-planning" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-cash-coin me-2"></i>
+                            Meal Planning
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#attendance" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Attendance
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#complaints" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Complaints
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#inventory" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-box-seam me-2"></i>
+                            Inventory
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#visitors" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-person-badge me-2"></i>
+                            Visitors
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#reports" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#scholarship-management" class="nav-link text-white" data-bs-toggle="pill">
+                            <i class="bi bi-award me-2"></i>
+                            Scholarship Management
+                        </a>
+                    </li>
+                </ul>
+            </div>
             <hr>
             <div class="dropdown">
                 <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
@@ -184,6 +216,7 @@
                 {% include 'admin/inventory.html' %}
                 {% include 'admin/visitors.html' %}
                 {% include 'admin/reports.html' %}
+                {% include 'admin/scholarship_management.html' %}
             </div>
         </div>
     </div>
