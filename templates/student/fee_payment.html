@@ -5,8 +5,18 @@
             <h5 class="mb-0">Your Fee Information</h5>
         </div>
         <div class="card-body">
-            <p> Your monthly mess fee is ₹<span id="mess-fee"></span>, due on the <span id="mess-fee-due-day"></span> of each month. The hostel rent of ₹<span id="rent-fee"></span> is to be paid by the <span id="rent-due-date"></span> monthly.</p>
+            <p>Your monthly mess fee is ₹<span id="mess-fee"></span>, due on the <span id="mess-fee-due-day"></span> of each month. The hostel rent of ₹<span id="rent-fee"></span> is to be paid by the <span id="rent-due-date"></span> monthly.</p>
             <p>Please note that a late fee of 5% per day will be applied to any overdue payments. We encourage timely payments to avoid any additional charges.</p>
+        </div>
+    </div>
+
+    <!-- Scholarship Information Card -->
+    <div class="card mb-4" id="scholarship-info" style="display: none;">
+        <div class="card-header">
+            <h5 class="mb-0">Scholarship Information</h5>
+        </div>
+        <div class="card-body">
+            <pre class="scholarship-note" style="white-space: pre-wrap;"></pre>
         </div>
     </div>
 
@@ -30,7 +40,11 @@
                     <tr>
                         <th>Due Date</th>
                         <th>Description</th>
-                        <th>Amount</th>
+                        <th>Original Amount</th>
+                        <th>Reductions</th>
+                        <th>Final Amount</th>
+                        <th>Late Fee</th>
+                        <th>Total</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -115,26 +129,51 @@ $(document).ready(function () {
                     $('#rent-due-date').text(response.feeInfo.rentDueDate);
                     $('#rent-fee').text(response.feeInfo.rentFee.toFixed(2));
 
+                    // Show scholarship info if available
+                    if (response.feeInfo.scholarshipNote) {
+                        $('#scholarship-info').show();
+                        $('#scholarship-info .scholarship-note').text(response.feeInfo.scholarshipNote);
+                    } else {
+                        $('#scholarship-info').hide();
+                    }
+
                     const upcomingPayments = $('#upcoming-payments');
                     upcomingPayments.empty();
+                    
                     response.feeInfo.upcomingPayments.forEach(function (payment) {
                         const totalAmount = payment.amount + payment.lateAmount;
-                        const payNowButton = `
+                        
+                        // Create reduction text
+                        let reductionsText = [];
+                        if (payment.scholarshipReduction > 0) {
+                            reductionsText.push(`Scholarship: -₹${payment.scholarshipReduction.toFixed(2)}`);
+                        }
+                        if (payment.leaveReduction > 0) {
+                            reductionsText.push(`Leave: -₹${payment.leaveReduction.toFixed(2)}`);
+                        }
+                        const reductions = reductionsText.length > 0 ? 
+                            reductionsText.join('<br>') : 
+                            'None';
+
+                        const payNowButton = totalAmount > 0 ? `
                             <button class="btn btn-primary btn-sm pay-now" data-amount="${totalAmount}" data-description="${payment.description}">
                                 <span class="button-text">Pay Now</span>
                                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                            </button>`;
+                            </button>` : '-';
+
                         upcomingPayments.append(`
-                        <tr>
-                            <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
-                            <td>${payment.description}</td>
-                            <td>₹${payment.amount.toFixed(2)}</td>
-                            <td>₹${payment.lateAmount.toFixed(2)}</td>
-                            <td>₹${totalAmount.toFixed(2)}</td>
-                            <td>${payment.status}</td>
-                            <td>${payNowButton}</td>
-                        </tr>
-                    `);
+                            <tr>
+                                <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
+                                <td>${payment.description}</td>
+                                <td>₹${payment.originalAmount.toFixed(2)}</td>
+                                <td>${reductions}</td>
+                                <td>₹${payment.amount.toFixed(2)}</td>
+                                <td>₹${payment.lateAmount.toFixed(2)}</td>
+                                <td>₹${totalAmount.toFixed(2)}</td>
+                                <td>${payment.status}</td>
+                                <td>${payNowButton}</td>
+                            </tr>
+                        `);
                     });
 
                 } else {
@@ -317,3 +356,17 @@ $(document).ready(function () {
     }
 });
 </script>
+
+<style>
+.scholarship-note {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0;
+    font-family: inherit;
+}
+
+.table td {
+    vertical-align: middle;
+}
+</style>

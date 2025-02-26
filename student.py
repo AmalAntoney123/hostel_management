@@ -434,14 +434,33 @@ def get_fee_info():
         student_id = session["user"]["_id"]
         print(f"Fetching fee info for student ID: {student_id}")  # Debug log
 
+        # Get approved scholarships for this student
+        approved_scholarships = list(db.scholarship_applications.find({
+            "student_id": ObjectId(student_id),
+            "status": "approved"
+        }))
+
+        # Get scholarship types for reduction amounts
+        scholarship_types = {
+            str(st["_id"]): st for st in db.scholarship_types.find()
+        }
+
+        # Calculate total scholarship reduction
+        total_scholarship_reduction = 0
+        for scholarship in approved_scholarships:
+            scholarship_type = scholarship_types.get(str(scholarship["scholarship_type"]))
+            if scholarship_type:
+                total_scholarship_reduction += scholarship_type["reduction_amount"]
+
+        # Rest of your existing code until the upcoming_payments calculation
         student = users.find_one({"_id": ObjectId(student_id)})
         if not student:
-            print(f"Student not found for ID: {student_id}")  # Debug log
+            print(f"Student not found for ID: {student_id}")
             return jsonify({"success": False, "message": "Student not found"}), 404
 
         fee_settings = db.fee_settings.find_one()
         if not fee_settings:
-            print("Fee settings not found")  # Debug log
+            print("Fee settings not found")
             return jsonify({"success": False, "message": "Fee settings not found"}), 404
 
         join_date = student.get("join_date")
@@ -463,15 +482,19 @@ def get_fee_info():
         print(f"Current date: {current_date}")  # Debug log
 
         upcoming_payments = []
+        remaining_scholarship = total_scholarship_reduction
+        scholarship_applied = []  # Track where scholarship was applied
 
         if join_date <= current_date:
+            # Get mess fee reductions (for leaves)
             approved_reductions = list(db.mess_fee_reductions.find({
                 "student_id": ObjectId(student_id),
                 "status": "approve"
             }))
-            print(f"Approved reductions: {approved_reductions}")  # Debug log
 
-            for i in range(0, 12):  # Check current month and up to 11 previous months
+            # Collect all mess fees first
+            mess_fees = []
+            for i in range(0, 12):
                 mess_fee_due_date = get_next_mess_fee_due_date(current_date, fee_settings["messFeeDay"], -i)
                 if mess_fee_due_date < join_date:
                     break
@@ -480,37 +503,61 @@ def get_fee_info():
                 month_name = mess_fee_due_date.strftime("%B %Y")
                 description = f"Mess Fee {month_name}"
 
-                print(f"Checking mess fee for {month_name}")  # Debug log
-                print(f"Mess fee due date: {mess_fee_due_date}")  # Debug log
-
-                # Check for applicable reduction
+                # Apply leave-based reductions first
                 applicable_reduction = next((r for r in approved_reductions if 
                     r["end_date"].replace(tzinfo=timezone.utc).date() >= mess_fee_due_date.replace(day=1).date() and
                     r["end_date"].replace(tzinfo=timezone.utc).date() <= (mess_fee_due_date.replace(day=1) + relativedelta(months=1) - relativedelta(days=1)).date()
                 ), None)
-                print(f"Applicable reduction found: {applicable_reduction}")  # Debug log
 
-                if applicable_reduction:
-                    print(f"Applying reduction for {month_name}: {applicable_reduction['reduced_amount']}")  # Debug log
-                    mess_fee_amount -= applicable_reduction["reduced_amount"]
-                    print(f"Reduced mess fee amount: {mess_fee_amount}")  # Debug log
+                leave_reduction = applicable_reduction["reduced_amount"] if applicable_reduction else 0
+                mess_fee_amount -= leave_reduction
 
                 if not is_payment_made(student_id, description, mess_fee_due_date):
-                    mess_fee_late_amount = calculate_late_fee(mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
-                    upcoming_payments.append({
-                        "dueDate": mess_fee_due_date.isoformat(),
+                    mess_fees.append({
+                        "dueDate": mess_fee_due_date,
                         "description": description,
+                        "originalAmount": fee_settings["messFee"],
                         "amount": mess_fee_amount,
-                        "lateAmount": mess_fee_late_amount,
-                        "status": "Overdue" if current_date > mess_fee_due_date else "Pending"
+                        "leaveReduction": leave_reduction,
+                        "status": "Overdue" if current_date > mess_fee_due_date else "Pending",
+                        "lateAmount": calculate_late_fee(mess_fee_due_date, current_date, fee_settings["messFeeLateFee"])
                     })
-                    print(f"Added upcoming payment for {month_name}: {mess_fee_amount}")  # Debug log
 
-            # Calculate hostel rent (unchanged)
+            # Sort mess fees by due date (latest first)
+            mess_fees.sort(key=lambda x: x["dueDate"], reverse=True)
+
+            # Apply scholarship reduction starting from latest mess fee
+            for fee in mess_fees:
+                if remaining_scholarship > 0:
+                    reduction_amount = min(remaining_scholarship, fee["amount"])
+                    fee["scholarshipReduction"] = reduction_amount
+                    fee["amount"] -= reduction_amount
+                    remaining_scholarship -= reduction_amount
+                    
+                    if reduction_amount > 0:
+                        scholarship_applied.append({
+                            "month": fee["description"],
+                            "amount": reduction_amount
+                        })
+                else:
+                    fee["scholarshipReduction"] = 0
+
+                upcoming_payments.append({
+                    "dueDate": fee["dueDate"].isoformat(),
+                    "description": fee["description"],
+                    "originalAmount": fee["originalAmount"],
+                    "amount": fee["amount"],
+                    "scholarshipReduction": fee.get("scholarshipReduction", 0),
+                    "leaveReduction": fee["leaveReduction"],
+                    "lateAmount": fee["lateAmount"],
+                    "status": fee["status"]
+                })
+
+            # Handle hostel rent
             rent_due_date = fee_settings["rentDueDate"].replace(year=current_date.year, tzinfo=timezone.utc)
             if rent_due_date < current_date:
                 rent_due_date = rent_due_date.replace(year=current_date.year + 1)
-            
+
             if join_date <= rent_due_date:
                 rent_fee_amount = fee_settings["rentFee"]
                 rent_fee_late_amount = calculate_late_fee(rent_due_date, current_date, fee_settings["rentFeeLateFee"])
@@ -521,22 +568,21 @@ def get_fee_info():
                     upcoming_payments.append({
                         "dueDate": rent_due_date.isoformat(),
                         "description": description,
-                        "amount": rent_fee_amount,
+                        "amount": rent_fee_amount,  # Rent is not affected by scholarship
+                        "originalAmount": rent_fee_amount,
+                        "scholarshipReduction": 0,
                         "lateAmount": rent_fee_late_amount,
                         "status": "Overdue" if current_date > rent_due_date else "Pending"
                     })
-                    print(f"Added upcoming payment for rent: {rent_fee_amount}")  # Debug log
 
-        # Get approved scholarships
-        approved_scholarships = list(db.fee_reductions.find({
-            "student_id": ObjectId(student_id),
-            "reduction_type": "scholarship"
-        }))
-
-        # Apply scholarship reductions to fees
-        for payment in upcoming_payments:
-            for scholarship in approved_scholarships:
-                payment["amount"] -= scholarship["reduction_amount"]
+        # Create scholarship reduction note
+        scholarship_note = ""
+        if total_scholarship_reduction > 0:
+            scholarship_note = "Scholarship reduction applied: \n"
+            for applied in scholarship_applied:
+                scholarship_note += f"- {applied['amount']} Rs. reduced from {applied['month']}\n"
+            if remaining_scholarship > 0:
+                scholarship_note += f"Remaining scholarship amount: {remaining_scholarship} Rs."
 
         fee_info = {
             "joinDate": join_date.isoformat(),
@@ -544,15 +590,17 @@ def get_fee_info():
             "messFee": fee_settings["messFee"],
             "rentDueDate": fee_settings["rentDueDate"].strftime("%B %d"),
             "rentFee": fee_settings["rentFee"],
-            "upcomingPayments": upcoming_payments
+            "upcomingPayments": upcoming_payments,
+            "totalScholarshipReduction": total_scholarship_reduction,
+            "remainingScholarship": remaining_scholarship,
+            "scholarshipNote": scholarship_note
         }
 
-        print(f"Final fee info: {fee_info}")  # Debug log
-
         return jsonify({"success": True, "feeInfo": fee_info})
+
     except Exception as e:
         print(f"Error in get_fee_info: {str(e)}")
-        print(traceback.format_exc())  # Print the full traceback for debugging
+        print(traceback.format_exc())
         return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
 
 def get_next_mess_fee_due_date(current_date, due_day, months_ahead=0):

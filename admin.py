@@ -2157,37 +2157,7 @@ def get_pending_applications():
         print(f"Error in get_pending_applications: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-@admin_bp.route("/update_scholarship_status", methods=["POST"])
-@login_required
-def update_scholarship_status():
-    if session["user"]["role"] != "admin":
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
 
-    try:
-        data = request.json
-        application_id = ObjectId(data["application_id"])
-        status = data["status"]
-
-        if status not in ["approved", "rejected"]:
-            return jsonify({"success": False, "message": "Invalid status"}), 400
-
-        result = db.scholarship_applications.update_one(
-            {"_id": application_id},
-            {"$set": {
-                "status": status,
-                "updated_at": datetime.utcnow(),
-                "updated_by": session["user"]["username"]
-            }}
-        )
-
-        if result.modified_count > 0:
-            return jsonify({"success": True, "message": f"Application {status} successfully"})
-        else:
-            return jsonify({"success": False, "message": "Application not found"}), 404
-
-    except Exception as e:
-        print(f"Error in update_scholarship_status: {str(e)}")
-        return jsonify({"success": False, "message": str(e)}), 500
 
 @admin_bp.route("/download_document/<application_id>")
 @login_required
@@ -2217,3 +2187,95 @@ def get_full_document_path(filename):
         current_app.config['UPLOAD_FOLDER'] = upload_folder
     
     return os.path.join(upload_folder, filename)
+
+@admin_bp.route("/get_approved_applications", methods=["GET"])
+@login_required
+def get_approved_applications():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        # Get approved applications
+        applications = list(db.scholarship_applications.find({"status": "approved"}))
+        
+        # Get all scholarship types for reference
+        scholarship_types = {str(st["_id"]): st for st in db.scholarship_types.find()}
+        
+        # Format the response
+        formatted_applications = []
+        for app in applications:
+            scholarship_type = scholarship_types.get(str(app["scholarship_type"]), {})
+            formatted_app = {
+                "_id": str(app["_id"]),
+                "student_id": str(app["student_id"]),
+                "student_name": app["student_name"],
+                "scholarship_type": str(app["scholarship_type"]),
+                "scholarship_type_name": scholarship_type.get("name", "Unknown"),
+                "annual_income": app["annual_income"],
+                "academic_percentage": app["academic_percentage"],
+                "reduction_amount": scholarship_type.get("reduction_amount", 0),
+                "submitted_at": app["submitted_at"].isoformat(),
+                "document_path": app.get("document_path", "")
+            }
+            formatted_applications.append(formatted_app)
+
+        return jsonify({
+            "success": True,
+            "applications": formatted_applications
+        })
+
+    except Exception as e:
+        print(f"Error in get_approved_applications: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# Modify the existing update_scholarship_status function to handle fee reduction
+@admin_bp.route("/update_scholarship_status", methods=["POST"])
+@login_required
+def update_scholarship_status():
+    if session["user"]["role"] != "admin":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        application_id = ObjectId(data["application_id"])
+        status = data["status"]
+
+        if status not in ["approved", "rejected"]:
+            return jsonify({"success": False, "message": "Invalid status"}), 400
+
+        # Get the application and scholarship details
+        application = db.scholarship_applications.find_one({"_id": application_id})
+        if not application:
+            return jsonify({"success": False, "message": "Application not found"}), 404
+
+        # Update application status
+        result = db.scholarship_applications.update_one(
+            {"_id": application_id},
+            {"$set": {
+                "status": status,
+                "updated_at": datetime.utcnow(),
+                "updated_by": session["user"]["username"]
+            }}
+        )
+
+        if result.modified_count > 0 and status == "approved":
+            # Get scholarship type details
+            scholarship_type = db.scholarship_types.find_one(
+                {"_id": ObjectId(application["scholarship_type"])}
+            )
+            
+            if scholarship_type:
+                # Update student's mess fee with reduction
+                db.students.update_one(
+                    {"_id": ObjectId(application["student_id"])},
+                    {"$inc": {"mess_fee_reduction": scholarship_type["reduction_amount"]}}
+                )
+
+        return jsonify({
+            "success": True, 
+            "message": f"Application {status} successfully"
+        })
+
+    except Exception as e:
+        print(f"Error in update_scholarship_status: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
