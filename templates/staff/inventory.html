@@ -6,6 +6,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="my-requests-tab" data-bs-toggle="tab" data-bs-target="#my-requests" type="button" role="tab" aria-controls="my-requests" aria-selected="false">My Requests</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="qr-scanner-tab" data-bs-toggle="tab" data-bs-target="#qr-scanner" type="button" role="tab" aria-controls="qr-scanner" aria-selected="false">QR Scanner</button>
+        </li>
     </ul>
     <div class="tab-content" id="inventoryTabContent">
         <div class="tab-pane fade show active" id="new-request" role="tabpanel" aria-labelledby="new-request-tab">
@@ -55,12 +58,42 @@
                 </div>
             </div>
         </div>
+        <div class="tab-pane fade" id="qr-scanner" role="tabpanel" aria-labelledby="qr-scanner-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Scan QR Code</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div id="reader"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="scanned-result" class="d-none">
+                                <h4>Request Details</h4>
+                                <div id="request-details"></div>
+                                <div class="mt-3">
+                                    <label for="updateStatus" class="form-label">Update Status</label>
+                                    <select class="form-select" id="updateStatus">
+                                        <option value="pending">Pending</option>
+                                        <option value="ordered">Ordered</option>
+                                        <option value="delivered">Delivered</option>
+                                    </select>
+                                    <button class="btn btn-primary mt-3" id="updateStatusBtn">Update Status</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
     $(document).ready(function() {
         var requestsTable = $('#requestsTable').DataTable();
@@ -121,6 +154,85 @@
             if (e.target.id === 'my-requests-tab') {
                 loadInventoryRequests();
             }
+        });
+
+        let html5QrcodeScanner = null;
+        let currentRequestId = null;
+
+        // Initialize QR Scanner when switching to scanner tab
+        $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+            if (e.target.id === 'qr-scanner-tab') {
+                if (!html5QrcodeScanner) {
+                    html5QrcodeScanner = new Html5QrcodeScanner(
+                        "reader", { fps: 10, qrbox: 250 });
+                    
+                    html5QrcodeScanner.render((decodedText) => {
+                        // Parse the JSON from QR code
+                        try {
+                            const qrData = JSON.parse(decodedText);
+                            currentRequestId = qrData.request_id;
+                            fetchRequestDetails(qrData.request_id);
+                            html5QrcodeScanner.pause();
+                        } catch (e) {
+                            alert('Invalid QR code format');
+                            console.error('QR code parsing error:', e);
+                        }
+                    });
+                }
+            } else if (html5QrcodeScanner) {
+                html5QrcodeScanner.resume();
+            }
+        });
+
+        function fetchRequestDetails(requestId) {
+            $.ajax({
+                url: '/staff/get_request_details/' + encodeURIComponent(requestId),
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#scanned-result').removeClass('d-none');
+                        $('#request-details').html(`
+                            <p><strong>Item Name:</strong> ${response.request.item_name}</p>
+                            <p><strong>Quantity:</strong> ${response.request.quantity}</p>
+                            <p><strong>Current Status:</strong> ${response.request.status}</p>
+                        `);
+                        $('#updateStatus').val(response.request.status);
+                    } else {
+                        alert('Error loading request details');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error loading request details: ' + error);
+                    console.error('Request failed:', xhr.responseText);
+                    html5QrcodeScanner.resume();
+                    $('#scanned-result').addClass('d-none');
+                }
+            });
+        }
+
+        $('#updateStatusBtn').click(function() {
+            if (!currentRequestId) return;
+
+            $.ajax({
+                url: '/staff/update_request_status',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    requestId: currentRequestId,
+                    status: $('#updateStatus').val()
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        alert('Status updated successfully');
+                        html5QrcodeScanner.resume();
+                        $('#scanned-result').addClass('d-none');
+                        currentRequestId = null;
+                        loadInventoryRequests(); // Refresh the requests table
+                    } else {
+                        alert('Error updating status');
+                    }
+                }
+            });
         });
     });
 </script>

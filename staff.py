@@ -349,3 +349,87 @@ def security_check():
     except Exception as e:
         print(f"Error in security check: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred during security check"}), 500
+
+@staff_bp.route("/staff/get_request_details/<request_id>", methods=["GET"])
+@login_required
+def get_request_details(request_id):
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        # Convert string ID to ObjectId
+        request_id = ObjectId(request_id)
+        
+        # Find the request in the database
+        request_details = db.inventory_requests.find_one({"_id": request_id})
+        
+        if not request_details:
+            return jsonify({"success": False, "message": "Request not found"}), 404
+        
+        # Convert ObjectId to string for JSON serialization
+        request_details["_id"] = str(request_details["_id"])
+        
+        # Convert datetime to ISO format string
+        if "timestamp" in request_details:
+            request_details["timestamp"] = request_details["timestamp"].isoformat()
+        
+        return jsonify({
+            "success": True,
+            "request": request_details
+        })
+        
+    except Exception as e:
+        print(f"Error fetching request details: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "Error fetching request details"
+        }), 500
+
+@staff_bp.route("/staff/update_request_status", methods=["POST"])
+@login_required
+def update_request_status():
+    if session["user"]["role"] != "staff":
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    try:
+        data = request.json
+        request_id = data.get("requestId")
+        new_status = data.get("status")
+
+        if not all([request_id, new_status]):
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        # Validate status
+        valid_statuses = ["pending", "ordered", "delivered"]
+        if new_status not in valid_statuses:
+            return jsonify({"success": False, "message": "Invalid status"}), 400
+
+        # Convert string ID to ObjectId
+        request_id = ObjectId(request_id)
+
+        # Update the request status
+        result = db.inventory_requests.update_one(
+            {"_id": request_id},
+            {"$set": {
+                "status": new_status,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+
+        if result.modified_count > 0:
+            return jsonify({
+                "success": True,
+                "message": f"Status updated to {new_status}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Request not found or status not changed"
+            }), 404
+
+    except Exception as e:
+        print(f"Error updating request status: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "Error updating request status"
+        }), 500

@@ -51,6 +51,7 @@
                                 <th>Reason</th>
                                 <th>Status</th>
                                 <th>Admin Comment</th>
+                                <th>QR Code</th>
                             </tr>
                         </thead>
                         <tbody id="allRequestsTableBody">
@@ -106,13 +107,18 @@ $(document).ready(function() {
             success: function(response) {
                 allRequestsTable.clear();
                 response.requests.forEach(function(request) {
+                    let qrCodeCell = '';
+                    if (request.qr_code) {
+                        qrCodeCell = '<img src="data:image/png;base64,' + request.qr_code + '" alt="QR Code" style="width: 100px; height: 100px;">';
+                    }
                     allRequestsTable.row.add([
                         request.staff_id,
                         request.item_name,
                         request.quantity,
                         request.reason,
                         request.status,
-                        request.admin_comment || ''
+                        request.admin_comment || '',
+                        qrCodeCell + (request.qr_code ? '<button class="btn btn-primary btn-sm print-qr-btn ms-2">Print QR</button>' : '')
                     ]);
                 });
                 allRequestsTable.draw();
@@ -170,6 +176,18 @@ $(document).ready(function() {
         } else if (target === "#all-requests") {
             loadAllRequests();
         }
+    });
+
+    // Add this new event handler before the final closing script tag
+    $('#allRequestsTable').on('click', '.print-qr-btn', function() {
+        var qrImage = $(this).prev('img').clone();
+        var printWindow = window.open('', '_blank');
+        printWindow.document.write('<html><head><title>Print QR Code</title></head><body>');
+        printWindow.document.write(qrImage.prop('outerHTML'));
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
     });
 });
 </script>

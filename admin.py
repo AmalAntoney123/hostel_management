@@ -30,6 +30,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import os
+import json
+import qrcode
+import base64
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -1096,6 +1099,16 @@ def process_inventory_request():
     if action not in ["approve", "reject"]:
         return jsonify({"success": False, "message": "Invalid action"}), 400
 
+    # Generate QR code data if approved
+    qr_code = None
+    if action == "approve":
+        qr_data = {
+            "request_id": request_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "approved"
+        }
+        qr_code = generate_qr_code(json.dumps(qr_data))
+
     result = db.inventory_requests.update_one(
         {"_id": ObjectId(request_id)},
         {
@@ -1103,6 +1116,7 @@ def process_inventory_request():
                 "status": action,
                 "admin_comment": admin_comment,
                 "processed_at": datetime.utcnow(),
+                "qr_code": qr_code if qr_code else None
             }
         },
     )
@@ -1117,6 +1131,30 @@ def process_inventory_request():
             404,
         )
 
+def generate_qr_code(data):
+    import qrcode
+    import base64
+    from io import BytesIO
+    
+    # Create QR code instance
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    
+    # Add data
+    qr.add_data(data)
+    qr.make(fit=True)
+    
+    # Create image
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convert to base64
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
 @admin_bp.route("/get_staff_list", methods=["GET"])
 @login_required
